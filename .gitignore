@@ -1,0 +1,10 @@
+node_modules
+.next
+dist
+out
+cache
+broadcast
+out-foundry
+.env
+.env.local
+*.log
