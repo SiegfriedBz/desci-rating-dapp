@@ -36,6 +36,7 @@ async function main(): Promise<void> {
   console.log("\nExport for fetch script:");
   console.log(`export DKG_UAL="${ual}"`);
   console.log(`export DKG_CONTEXT_GRAPH_ID="${contextGraphId}"`);
+  console.log(`export DKG_SUBJECT_URI="urn:uuid:desci-sample-1"`);
 
   await client.stop();
 }
