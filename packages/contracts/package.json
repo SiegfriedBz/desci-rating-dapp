@@ -5,6 +5,10 @@
     "scripts": {
       "build": "forge build",
       "test": "forge test",
+      "test:vv": "forge test -vv",
+      "test:gas": "forge test --gas-report",
+      "coverage": "forge coverage",
+      "deploy:base-sepolia": "forge script script/RatingController.s.sol:RatingControllerScript --rpc-url base_sepolia --broadcast --verify --private-key $PRIVATE_KEY -vvvv",
       "clean": "forge clean"
     }
   }
