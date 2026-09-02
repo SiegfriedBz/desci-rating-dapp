@@ -35,4 +35,22 @@ export type KnowledgeAssetPublishResult = {
   ual: string;
 };
 
+/** Mint a Phase-1 rating Knowledge Asset (R-KA) linked to a target publication UAL. */
+export type PublishRatingParams = {
+  contextGraphId: string;
+  /** Target publication UAL (schema:about object). */
+  targetUal: string;
+  score: number;
+  author: string;
+  /** Named KA within the context graph; defaults to a unique `desci-rating-*` id. */
+  name?: string;
+};
+
+export type PublishRatingResult = KnowledgeAssetPublishResult & {
+  /** Local RDF subject IRI of the rating assertion. */
+  ratingSubject: string;
+  /** Daemon Knowledge Asset name used for publish. */
+  name: string;
+};
+
 export type SparqlBindings = Record<string, string>[];

@@ -4,6 +4,8 @@ import {
   DkgConfig,
   KnowledgeAssetPublishResult,
   PublishAssetParams,
+  PublishRatingParams,
+  PublishRatingResult,
   SparqlBindings,
 } from "@desci/shared";
 import { connectDaemon } from "./daemon/index.js";
@@ -13,6 +15,20 @@ import {
   SCHEMA_RATING_VALUE,
   sparqlIri,
   sparqlTermValue,
+} from "./daemon/sparql.js";
+import { publishRatingAssertion } from "./ratings.js";
+
+export type { PublishRatingParams, PublishRatingResult } from "@desci/shared";
+export {
+  buildRatingQuads,
+  createRatingIdentity,
+  nquadIntegerLiteral,
+  nquadStringLiteral,
+} from "./ratings.js";
+export {
+  SCHEMA_ABOUT,
+  SCHEMA_AUTHOR,
+  SCHEMA_RATING_VALUE,
 } from "./daemon/sparql.js";
 
 export type TargetAssetBinding = {
@@ -46,6 +62,14 @@ export async function createDkgClient(config: DkgConfig = {}) {
         params.contextGraphId,
         params.name,
         params.quads
+      );
+    },
+    publishRating: async (
+      params: PublishRatingParams
+    ): Promise<PublishRatingResult> => {
+      return publishRatingAssertion(
+        { publishAssertion: daemon.publishAssertion },
+        params
       );
     },
     query: async (

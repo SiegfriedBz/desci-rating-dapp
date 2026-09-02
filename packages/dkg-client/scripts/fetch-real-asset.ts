@@ -1,36 +1,19 @@
-import { createDkgClient } from "./index.js";
-
-function requireUal(): string {
-  const ual = process.argv[2] ?? process.env["DKG_UAL"];
-  if (!ual?.trim()) {
-    throw new Error(
-      "Missing UAL. Pass as argv or set DKG_UAL (e.g. from dkg:publish-sample output)."
-    );
-  }
-  return ual.trim();
-}
-
-function requireContextGraphId(): string {
-  const contextGraphId =
-    process.argv[3] ?? process.env["DKG_CONTEXT_GRAPH_ID"];
-  if (!contextGraphId?.trim()) {
-    throw new Error(
-      "Missing context graph id. Pass as second argv or set DKG_CONTEXT_GRAPH_ID."
-    );
-  }
-  return contextGraphId.trim();
-}
-
-function optionalSubjectUri(): string | undefined {
-  const subject = process.argv[4] ?? process.env["DKG_SUBJECT_URI"];
-  const trimmed = subject?.trim();
-  return trimmed || undefined;
-}
+import { createDkgClient } from "@desci/dkg-client";
+import { argOrEnv, requireArgOrEnv } from "./cli/env.js";
+import { runMain } from "./cli/run.js";
 
 async function main(): Promise<void> {
-  const ual = requireUal();
-  const contextGraphId = requireContextGraphId();
-  const subjectUri = optionalSubjectUri();
+  const ual = requireArgOrEnv(
+    2,
+    "DKG_UAL",
+    "Missing UAL. Pass as argv or set DKG_UAL (e.g. from dkg:publish-sample output)."
+  );
+  const contextGraphId = requireArgOrEnv(
+    3,
+    "DKG_CONTEXT_GRAPH_ID",
+    "Missing context graph id. Pass as second argv or set DKG_CONTEXT_GRAPH_ID."
+  );
+  const subjectUri = argOrEnv(4, "DKG_SUBJECT_URI");
   const targetIri = subjectUri ?? ual;
   const client = await createDkgClient();
 
@@ -87,7 +70,4 @@ async function main(): Promise<void> {
   await client.stop();
 }
 
-main().catch((err: unknown) => {
-  console.error("Fatal:", err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+runMain(main);
