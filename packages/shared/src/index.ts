@@ -1,9 +1,56 @@
-export interface RatingMetadata {
-    targetUal: string;
-    score: number;
-    methodology: string;
-    timestamp: number;
-    evaluator: string;
-  }
-  
-  export const BASE_SEPOLIA_CHAIN_ID = 84532;
+export const BASE_SEPOLIA_CHAIN_ID = 84532;
+export const DEFAULT_BASE_SEPOLIA_HUB_ADDRESS =
+  "0xC056e67Da4F51377Ad1B01f50F655fFdcCD809F6";
+
+export type RatingMetadata = {
+  targetUal: string;
+  score: number;
+  methodology: string;
+  timestamp: number;
+  evaluator: string;
+};
+
+export type KnowledgeAssetQuad = {
+  subject: string;
+  predicate: string;
+  object: string;
+  graph?: string;
+};
+
+export type DkgConfig = {
+  /** Override daemon base URL, e.g. http://127.0.0.1:9200 */
+  apiUrl?: string;
+  /** Bearer token; defaults to ~/.dkg/auth.token */
+  authToken?: string;
+};
+
+export type PublishAssetParams = {
+  contextGraphId: string;
+  /** Named Knowledge Asset within the context graph. */
+  name: string;
+  quads: KnowledgeAssetQuad[];
+};
+
+export type KnowledgeAssetPublishResult = {
+  ual: string;
+};
+
+/** Mint a Phase-1 rating Knowledge Asset (R-KA) linked to a target publication UAL. */
+export type PublishRatingParams = {
+  contextGraphId: string;
+  /** Target publication UAL (schema:about object). */
+  targetUal: string;
+  score: number;
+  author: string;
+  /** Named KA within the context graph; defaults to a unique `desci-rating-*` id. */
+  name?: string;
+};
+
+export type PublishRatingResult = KnowledgeAssetPublishResult & {
+  /** Local RDF subject IRI of the rating assertion. */
+  ratingSubject: string;
+  /** Daemon Knowledge Asset name used for publish. */
+  name: string;
+};
+
+export type SparqlBindings = Record<string, string>[];
