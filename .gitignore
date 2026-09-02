@@ -7,4 +7,5 @@ broadcast
 out-foundry
 .env
 .env.local
+.dkg-data
 *.log

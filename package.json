@@ -3,15 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "dkg:init": "dkg init --network testnet",
+    "dkg:start": "dkg start",
+    "dkg:stop": "dkg stop",
+    "dkg:publish-sample": "turbo run build --filter=@desci/dkg-client && tsx --env-file-if-exists=.env packages/dkg-client/src/publish-sample.ts",
+    "dkg:fetch-asset": "turbo run build --filter=@desci/dkg-client && tsx --env-file-if-exists=.env packages/dkg-client/src/fetch-real-asset.ts",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@origintrail-official/dkg": "^10.0.14",
     "@types/node": "^26.4.0",
+    "tsx": "^4.23.13",
     "turbo": "^2.10.12",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@10.24.0"
+  "packageManager": "pnpm@10.24.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@origintrail-official/dkg",
+      "better-sqlite3"
+    ]
+  }
 }
