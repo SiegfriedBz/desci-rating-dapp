@@ -19,21 +19,11 @@ import {
 import { publishRatingAssertion } from "./ratings.js";
 
 export type { PublishRatingParams, PublishRatingResult } from "@desci/shared";
-export {
-  buildRatingQuads,
-  createRatingIdentity,
-  nquadIntegerLiteral,
-  nquadStringLiteral,
-} from "./ratings.js";
-export {
-  SCHEMA_ABOUT,
-  SCHEMA_AUTHOR,
-  SCHEMA_RATING_VALUE,
-} from "./daemon/sparql.js";
 
 export type TargetAssetBinding = {
-  p: string;
-  o: string;
+  subject: string;
+  predicate: string;
+  object: string;
 };
 
 export type RatingBinding = {
@@ -41,6 +31,16 @@ export type RatingBinding = {
   ratingValue: string;
   author: string;
 };
+
+/** Thrown when the daemon has no quads for a target UAL (retriable). */
+export class TargetAssetNotIndexedError extends Error {
+  readonly code = "TargetAssetNotIndexed" as const;
+
+  constructor(targetUal: string) {
+    super(`TargetAssetNotIndexed: no triples found for ${targetUal}`);
+    this.name = "TargetAssetNotIndexedError";
+  }
+}
 
 export async function createDkgClient(config: DkgConfig = {}) {
   const daemon = await connectDaemon({
@@ -64,6 +64,13 @@ export async function createDkgClient(config: DkgConfig = {}) {
         params.quads
       );
     },
+    /** Look up the on-chain UAL for a Knowledge Asset by daemon name. */
+    getAssetUal: async (
+      name: string,
+      contextGraphId: string
+    ): Promise<string | null> => {
+      return daemon.getAssetUal(contextGraphId, name);
+    },
     publishRating: async (
       params: PublishRatingParams
     ): Promise<PublishRatingResult> => {
@@ -78,25 +85,23 @@ export async function createDkgClient(config: DkgConfig = {}) {
     ): Promise<{ bindings: SparqlBindings }> => {
       return daemon.query(sparql, contextGraphId);
     },
-    fetchTargetAsset: async (
-      targetIri: string,
+    /**
+     * Load the Knowledge Asset assertion for a published UAL.
+     * Resolves the KA via the daemon identifier API, then dumps its assertion
+     * graph. Empty/404 → TargetAssetNotIndexedError.
+     */
+    getAssetQuadsByUal: async (
+      targetUal: string,
       contextGraphId: string
     ): Promise<{ bindings: TargetAssetBinding[] }> => {
-      const subject = sparqlIri(targetIri);
-      const sparql = `
-        SELECT ?p ?o
-        WHERE {
-          ${subject} ?p ?o .
-        }
-        LIMIT 50
-      `;
-      const { bindings } = await daemon.query(sparql, contextGraphId);
-      return {
-        bindings: bindings.map((row) => ({
-          p: sparqlTermValue(row["p"]),
-          o: sparqlTermValue(row["o"]),
-        })),
-      };
+      const bindings = await daemon.getAssetQuadsByUal(
+        targetUal,
+        contextGraphId
+      );
+      if (bindings.length === 0) {
+        throw new TargetAssetNotIndexedError(targetUal);
+      }
+      return { bindings };
     },
     fetchRatingsForAsset: async (
       targetUal: string,

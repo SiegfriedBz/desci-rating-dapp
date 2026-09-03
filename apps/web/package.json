@@ -10,11 +10,14 @@
   },
   "dependencies": {
     "@desci/agents": "workspace:*",
+    "@desci/contracts": "workspace:*",
     "@desci/dkg-client": "workspace:*",
     "@desci/shared": "workspace:*",
+    "inngest": "^3.44.3",
     "next": "16.3.3",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "viem": "^2.56.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
