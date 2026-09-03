@@ -1,7 +1,8 @@
-node_modules
-.next
-dist
-out
+node_modules/
+.next/
+dist/
+out/
+*.tsbuildinfo
 cache
 broadcast
 out-foundry
