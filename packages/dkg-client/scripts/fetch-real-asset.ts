@@ -1,50 +1,85 @@
-import { createDkgClient } from "@desci/dkg-client";
-import { argOrEnv, requireArgOrEnv } from "./cli/env.js";
+import {
+  createDkgClient,
+  TargetAssetNotIndexedError,
+} from "@desci/dkg-client";
+import { argOrEnv } from "./cli/env.js";
 import { runMain } from "./cli/run.js";
+import {
+  resolveSampleContextGraphId,
+  resolveSampleKaName,
+} from "./cli/sample.js";
 
 async function main(): Promise<void> {
-  const ual = requireArgOrEnv(
-    2,
-    "DKG_UAL",
-    "Missing UAL. Pass as argv or set DKG_UAL (e.g. from dkg:publish-sample output)."
+  const contextGraphId = resolveSampleContextGraphId(
+    argOrEnv(3, "DKG_CONTEXT_GRAPH_ID")
   );
-  const contextGraphId = requireArgOrEnv(
-    3,
-    "DKG_CONTEXT_GRAPH_ID",
-    "Missing context graph id. Pass as second argv or set DKG_CONTEXT_GRAPH_ID."
-  );
-  const subjectUri = argOrEnv(4, "DKG_SUBJECT_URI");
-  const targetIri = subjectUri ?? ual;
+  const envUal = argOrEnv(2, "DKG_UAL");
+  const kaName = resolveSampleKaName({
+    kaName: process.env["DKG_KA_NAME"],
+    ual: envUal,
+  });
+
   const client = await createDkgClient();
 
-  console.log(`API      : ${client.getApiBaseUrl()}`);
-  console.log(`Graph    : ${contextGraphId}`);
-  console.log(`UAL      : ${ual}`);
-  console.log(`TargetIRI: ${targetIri}${subjectUri ? "" : " (from DKG_UAL)"}\n`);
+  let ual = envUal;
+  let ualSource: "DKG_UAL" | "daemon" = "DKG_UAL";
 
-  console.log("--- Action A: fetchTargetAsset ---");
-  const { bindings: assetBindings } = await client.fetchTargetAsset(
-    targetIri,
-    contextGraphId
+  if (kaName) {
+    const resolved = await client.getAssetUal(kaName, contextGraphId);
+    if (resolved) {
+      if (envUal && envUal !== resolved) {
+        console.warn(
+          `Warning: DKG_UAL in env/argv (${envUal}) differs from daemon UAL for KA "${kaName}". Using daemon UAL.`
+        );
+      }
+      ual = resolved;
+      ualSource = "daemon";
+    } else if (!envUal) {
+      throw new Error(
+        `No UAL found for Knowledge Asset "${kaName}" in graph "${contextGraphId}". Run pnpm dkg:publish-sample first, or set DKG_UAL.`
+      );
+    } else {
+      console.warn(
+        `Warning: KA "${kaName}" has no UAL in daemon; falling back to DKG_UAL.`
+      );
+    }
+  }
+
+  if (!ual) {
+    throw new Error(
+      "Missing UAL. Set DKG_UAL, or DKG_KA_NAME, or run pnpm dkg:publish-sample (defaults to the shared sample KA)."
+    );
+  }
+
+  console.log(`API  : ${client.getApiBaseUrl()}`);
+  console.log(`Graph: ${contextGraphId}`);
+  if (kaName) {
+    console.log(`KA   : ${kaName}`);
+  }
+  console.log(
+    `UAL  : ${ual}${ualSource === "daemon" ? " (from daemon)" : ""}\n`
   );
 
-  if (assetBindings.length === 0) {
-    console.log("No triples found for target IRI.\n");
-    if (!subjectUri) {
-      console.warn(
-        "Hint: sample Knowledge Assets use local subjects like urn:uuid:desci-sample-1, not the on-chain UAL."
-      );
-      console.warn(
-        "Set DKG_SUBJECT_URI=urn:uuid:desci-sample-1 (or pass as argv[4]) and retry.\n"
-      );
-    }
-  } else {
+  console.log("--- Action A: getAssetQuadsByUal ---");
+  try {
+    const { bindings: assetBindings } = await client.getAssetQuadsByUal(
+      ual,
+      contextGraphId
+    );
+
     console.log(`Found ${assetBindings.length} property binding(s):\n`);
-    for (const { p, o } of assetBindings) {
-      console.log(`  ${p}`);
-      console.log(`    → ${o}`);
+    for (const { subject, predicate, object } of assetBindings) {
+      console.log(`  ${subject}`);
+      console.log(`    ${predicate}`);
+      console.log(`      → ${object}`);
     }
     console.log();
+  } catch (err) {
+    if (err instanceof TargetAssetNotIndexedError) {
+      console.log("No triples found for this UAL (not indexed locally).\n");
+    } else {
+      throw err;
+    }
   }
 
   console.log("--- Action B: fetchRatingsForAsset ---");

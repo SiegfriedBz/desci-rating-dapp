@@ -20,16 +20,3 @@ export function argOrEnv(
   const fromEnv = process.env[envName]?.trim();
   return fromEnv || undefined;
 }
-
-/** Require argv or env; throw with a clear hint if neither is set. */
-export function requireArgOrEnv(
-  argvIndex: number,
-  envName: string,
-  hint: string
-): string {
-  const value = argOrEnv(argvIndex, envName);
-  if (!value) {
-    throw new Error(hint);
-  }
-  return value;
-}
