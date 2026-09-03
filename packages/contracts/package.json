@@ -1,14 +1,25 @@
 {
-    "name": "@desci/contracts",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-      "build": "forge build",
-      "test": "forge test",
-      "test:vv": "forge test -vv",
-      "test:gas": "forge test --gas-report",
-      "coverage": "forge coverage",
-      "deploy:base-sepolia": "forge script script/RatingController.s.sol:RatingControllerScript --rpc-url base_sepolia --broadcast --verify --private-key $PRIVATE_KEY -vvvv",
-      "clean": "forge clean"
+  "name": "@desci/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
+  },
+  "scripts": {
+    "build": "forge build && node scripts/export-abi.mjs && tsc",
+    "test": "forge test",
+    "test:vv": "forge test -vv",
+    "test:gas": "forge test --gas-report",
+    "coverage": "forge coverage",
+    "deploy:base-sepolia": "forge script script/RatingController.s.sol:RatingControllerScript --rpc-url base_sepolia --broadcast --verify --private-key $PRIVATE_KEY -vvvv",
+    "clean": "forge clean && rm -rf dist out"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
+}
