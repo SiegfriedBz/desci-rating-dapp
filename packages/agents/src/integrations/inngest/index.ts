@@ -8,10 +8,10 @@ export type {
 export {
   processRatingControllerEvent,
   type ProcessRatingControllerEventInput,
-} from "./process-contract-event.js";
-export { phase1RequestedFunction } from "./phase1-requested.js";
+} from "./adapters/rating-controller-event.js";
+export { phase1RequestedFunction } from "./functions/phase1-requested.js";
 export {
   phase1FulfilledLogFunction,
   requestCancelledLogFunction,
   oracleUpdatedLogFunction,
-} from "./log-contract-event.js";
+} from "./functions/log-contract-event.js";

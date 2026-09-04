@@ -1,10 +1,10 @@
-import type { inngest as InngestClient } from "./client.js";
+import type { inngest as InngestClient } from "../client.js";
 import type {
   OracleUpdatedData,
   Phase1FulfilledData,
   Phase1RequestedData,
   RequestCancelledData,
-} from "./client.js";
+} from "../client.js";
 
 type DecodedContractEvent = {
   eventName: string;

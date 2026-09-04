@@ -1,4 +1,4 @@
-import { inngest } from "./client.js";
+import { inngest } from "../client.js";
 
 /** Log-only handler for Phase1Fulfilled (on-chain confirmation of our own fulfill). */
 export const phase1FulfilledLogFunction = inngest.createFunction(

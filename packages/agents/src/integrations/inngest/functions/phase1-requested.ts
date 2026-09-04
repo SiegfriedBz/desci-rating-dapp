@@ -3,18 +3,21 @@ import {
   TargetAssetNotIndexedError,
   type TargetAssetBinding,
 } from "@desci/dkg-client";
-import { fulfillPhase1OnChain } from "../evm/fulfill-phase1.js";
-import { runSciScoreAgent } from "../sciscore/graph.js";
-import { inngest } from "./client.js";
+import { env, requireEnv } from "@desci/env";
+import {
+  formatKaScoreDescription,
+  runKaScorerAgent,
+} from "../../../agents/ka-scorer/index.js";
+import { fulfillPhase1OnChain } from "../../evm/fulfill-phase1.js";
+import { inngest } from "../client.js";
 
 const PHASE_ONE_AUTHOR = "BioProtocol_Phase1_Agent";
 
 function requireContextGraphId(): string {
-  const id = process.env["DKG_CONTEXT_GRAPH_ID"];
-  if (!id?.trim()) {
-    throw new Error("DKG_CONTEXT_GRAPH_ID is required for Phase-1 DKG steps");
-  }
-  return id.trim();
+  return requireEnv(
+    env.DKG_CONTEXT_GRAPH_ID,
+    "DKG_CONTEXT_GRAPH_ID is required for Phase-1 DKG steps"
+  );
 }
 
 export const phase1RequestedFunction = inngest.createFunction(
@@ -47,8 +50,8 @@ export const phase1RequestedFunction = inngest.createFunction(
       }
     });
 
-    const evaluation = await step.run("run-sciscore-agent", async () => {
-      return runSciScoreAgent(bindings as TargetAssetBinding[]);
+    const evaluation = await step.run("run-ka-scorer-agent", async () => {
+      return runKaScorerAgent(bindings as TargetAssetBinding[]);
     });
 
     const minted = await step.run("mint-r-ka", async () => {
@@ -59,6 +62,7 @@ export const phase1RequestedFunction = inngest.createFunction(
           targetUal,
           score: evaluation.score,
           author: PHASE_ONE_AUTHOR,
+          description: formatKaScoreDescription(evaluation),
         });
         return { rKaUal: result.ual, ratingSubject: result.ratingSubject };
       } finally {
@@ -79,7 +83,9 @@ export const phase1RequestedFunction = inngest.createFunction(
       requestId,
       targetUal,
       score: evaluation.score,
-      rigor: evaluation.rigor,
+      rationale: evaluation.rationale,
+      observed: evaluation.observed,
+      missing: evaluation.missing,
       rKaUal: minted.rKaUal,
       fulfill,
     };

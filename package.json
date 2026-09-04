@@ -3,23 +3,37 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "//── workspace ──": ":",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+
+    "//── inngest ──": ":",
+    "inngest:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
+
+    "//── dkg node ──": ":",
     "dkg:init": "dkg init --network testnet",
     "dkg:start": "dkg start",
     "dkg:stop": "dkg stop",
+
+    "//── dkg assets ──": ":",
     "dkg:publish-sample": "pnpm --filter @desci/dkg-client build && tsx --env-file-if-exists=.env packages/dkg-client/scripts/publish-sample.ts",
     "dkg:publish-rating": "pnpm --filter @desci/dkg-client build && tsx --env-file-if-exists=.env packages/dkg-client/scripts/publish-rating.ts",
     "dkg:fetch-asset": "pnpm --filter @desci/dkg-client build && tsx --env-file-if-exists=.env packages/dkg-client/scripts/fetch-real-asset.ts",
+    "dkg:publish-pdf": "pnpm --filter @desci/dkg-client build && pnpm --filter @desci/agents build && tsx --env-file-if-exists=.env packages/agents/scripts/publish-pdf.ts",
+
+    "//── grobid ──": ":",
+    "grobid:up": "docker compose -f docker-compose.grobid.yml up -d",
+    "grobid:down": "docker compose -f docker-compose.grobid.yml down",
+
+    "//── contracts ──": ":",
     "contracts:build": "pnpm --filter @desci/contracts build",
     "contracts:test": "pnpm --filter @desci/contracts test",
     "contracts:test:vv": "pnpm --filter @desci/contracts test:vv",
     "contracts:test:gas": "pnpm --filter @desci/contracts test:gas",
     "contracts:coverage": "pnpm --filter @desci/contracts coverage",
-    "contracts:deploy:base-sepolia": "bash -c 'set -a && [ -f .env ] && . ./.env; set +a && pnpm --filter @desci/contracts deploy:base-sepolia'",
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "inngest:dev": "npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
-    "test": "turbo run test",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "contracts:deploy:base-sepolia": "bash -c 'set -a && [ -f .env ] && . ./.env; set +a && pnpm --filter @desci/contracts deploy:base-sepolia'"
   },
   "devDependencies": {
     "@origintrail-official/dkg": "^10.0.14",

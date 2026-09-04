@@ -2,6 +2,7 @@ import {
   getRatingControllerAddress,
   ratingControllerAbi,
 } from "@desci/contracts";
+import { env, requireEnv } from "@desci/env";
 import {
   createPublicClient,
   createWalletClient,
@@ -20,10 +21,10 @@ export type FulfillPhase1Result =
   | { status: "fulfilled"; txHash: Hex };
 
 function requireOraclePrivateKey(): Hex {
-  const key = process.env["ORACLE_AGENT_PRIVATE_KEY"];
-  if (!key) {
-    throw new Error("ORACLE_AGENT_PRIVATE_KEY is required for on-chain fulfill");
-  }
+  const key = requireEnv(
+    env.ORACLE_AGENT_PRIVATE_KEY,
+    "ORACLE_AGENT_PRIVATE_KEY is required for on-chain fulfill"
+  );
   const normalized = key.startsWith("0x") ? key : `0x${key}`;
   if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
     throw new Error("ORACLE_AGENT_PRIVATE_KEY must be a 32-byte hex private key");
@@ -32,11 +33,10 @@ function requireOraclePrivateKey(): Hex {
 }
 
 function requireRpcUrl(): string {
-  const url = process.env["BASE_SEPOLIA_RPC_URL"];
-  if (!url) {
-    throw new Error("BASE_SEPOLIA_RPC_URL is required for on-chain fulfill");
-  }
-  return url;
+  return requireEnv(
+    env.BASE_SEPOLIA_RPC_URL,
+    "BASE_SEPOLIA_RPC_URL is required for on-chain fulfill"
+  );
 }
 
 /**
