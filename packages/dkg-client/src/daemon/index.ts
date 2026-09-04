@@ -1,2 +1,2 @@
-export { connectDaemon } from "./connect.js";
-export type { DaemonClient, DaemonConnectConfig } from "./types.js";
+export { connectDaemon } from "./gateway.js";
+export type { DaemonClient, DaemonConnectConfig, AssetQuadBinding } from "./types.js";

@@ -2,17 +2,17 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { env } from "@desci/env";
 import type { DaemonConnectConfig } from "./types.js";
 
 function dkgHome(): string {
-  return process.env["DKG_HOME"]?.trim() || join(homedir(), ".dkg");
+  return env.DKG_HOME || join(homedir(), ".dkg");
 }
 
 export async function readAuthToken(
   config: DaemonConnectConfig = {}
 ): Promise<string> {
-  const fromEnv =
-    config.authToken?.trim() ?? process.env["DKG_AUTH_TOKEN"]?.trim();
+  const fromEnv = config.authToken?.trim() ?? env.DKG_AUTH_TOKEN;
   if (fromEnv) {
     return fromEnv;
   }
@@ -40,7 +40,7 @@ export async function readAuthToken(
 export async function resolveApiBaseUrl(
   config: DaemonConnectConfig = {}
 ): Promise<string> {
-  const explicit = config.apiUrl?.trim() ?? process.env["DKG_API_URL"]?.trim();
+  const explicit = config.apiUrl?.trim() ?? env.DKG_API_URL;
   if (explicit) {
     return explicit.replace(/\/+$/, "");
   }
@@ -63,6 +63,6 @@ export async function resolveApiBaseUrl(
     }
   }
 
-  const port = process.env["DKG_API_PORT"]?.trim() || "9200";
+  const port = env.DKG_API_PORT || "9200";
   return `http://127.0.0.1:${port}`;
 }

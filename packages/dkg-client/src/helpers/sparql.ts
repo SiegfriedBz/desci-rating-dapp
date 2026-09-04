@@ -1,7 +1,3 @@
-export const SCHEMA_ABOUT = "http://schema.org/about";
-export const SCHEMA_RATING_VALUE = "http://schema.org/ratingValue";
-export const SCHEMA_AUTHOR = "http://schema.org/author";
-
 /**
  * Validate an IRI for SPARQL injection. Preserves DID/UAL characters
  * (`:`, `/`, etc.). Only rejects empty values, whitespace, or `>`.

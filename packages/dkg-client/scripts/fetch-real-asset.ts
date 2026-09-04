@@ -2,6 +2,7 @@ import {
   createDkgClient,
   TargetAssetNotIndexedError,
 } from "@desci/dkg-client";
+import { env } from "@desci/env";
 import { argOrEnv } from "./cli/env.js";
 import { runMain } from "./cli/run.js";
 import {
@@ -15,7 +16,7 @@ async function main(): Promise<void> {
   );
   const envUal = argOrEnv(2, "DKG_UAL");
   const kaName = resolveSampleKaName({
-    kaName: process.env["DKG_KA_NAME"],
+    kaName: env.DKG_KA_NAME,
     ual: envUal,
   });
 
@@ -82,8 +83,8 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log("--- Action B: fetchRatingsForAsset ---");
-  const { bindings: ratingBindings } = await client.fetchRatingsForAsset(
+  console.log("--- Action B: queryRatingsAbout ---");
+  const { bindings: ratingBindings } = await client.queryRatingsAbout(
     ual,
     contextGraphId
   );
@@ -95,9 +96,12 @@ async function main(): Promise<void> {
   } else {
     console.log(`Found ${ratingBindings.length} rating(s):\n`);
     for (const rating of ratingBindings) {
-      console.log(`  subject : ${rating.ratingSubject}`);
-      console.log(`  value   : ${rating.ratingValue}`);
-      console.log(`  author  : ${rating.author}`);
+      console.log(`  subject     : ${rating.ratingSubject}`);
+      console.log(`  value       : ${rating.ratingValue}`);
+      console.log(`  author      : ${rating.author}`);
+      console.log(
+        `  description : ${rating.description ?? "(none — older R-KA)"}`
+      );
       console.log();
     }
   }

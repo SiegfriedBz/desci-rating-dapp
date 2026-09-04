@@ -1,29 +1,8 @@
-import type { KnowledgeAssetQuad, SparqlBindings } from "@desci/shared";
-import { daemonRequest } from "./http.js";
-import type { AssetQuadBinding } from "./types.js";
-
-export async function ensureContextGraph(
-  baseUrl: string,
-  token: string,
-  id: string,
-  name?: string
-): Promise<void> {
-  try {
-    await daemonRequest(baseUrl, token, "/api/context-graph/create", {
-      method: "POST",
-      body: JSON.stringify({
-        id,
-        name: name ?? id,
-      }),
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("already exists")) {
-      return;
-    }
-    throw err;
-  }
-}
+import type { KnowledgeAssetQuad } from "@desci/shared";
+import { sparqlTermValue } from "../../helpers/sparql.js";
+import type { TargetAssetBinding } from "../../schema/types.js";
+import { daemonRequest } from "../http.js";
+import { queryDaemon } from "./query.js";
 
 export async function readPublishedUal(
   baseUrl: string,
@@ -49,6 +28,26 @@ export async function readPublishedUal(
   }
 }
 
+function isUnknownAccessPolicyError(message: string): boolean {
+  return (
+    message.includes("LU-5") ||
+    message.includes("publish access-policy is unknown")
+  );
+}
+
+function unknownAccessPolicyHint(contextGraphId: string): string {
+  return (
+    `DKG could not confirm on-chain access policy for context graph "${contextGraphId}" ` +
+    `(source/target curated=unknown). The node refuses to guess plaintext vs encrypted. ` +
+    `Usually a Base Sepolia RPC timeout. Retry, or check the DKG node's RPC and that ` +
+    `the graph is registered. Restart with "pnpm dkg:start" if the daemon looks stuck.`
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function publishAssertion(
   baseUrl: string,
   token: string,
@@ -61,36 +60,53 @@ export async function publishAssertion(
     return { ual: existingUal };
   }
 
-  try {
-    await daemonRequest(baseUrl, token, "/api/knowledge-assets", {
-      method: "POST",
-      body: JSON.stringify({
-        contextGraphId,
-        name,
-        quads,
-        finalize: true,
-        alsoShareSwm: true,
-      }),
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    // Stuck mid-promote / already finalized: recover by reading current UAL.
-    if (
-      message.includes("unfinished promote") ||
-      message.includes("already exists") ||
-      message.includes("already published")
-    ) {
-      const recovered = await readPublishedUal(
-        baseUrl,
-        token,
-        contextGraphId,
-        name
-      );
-      if (recovered) {
-        return { ual: recovered };
+  const maxAttempts = 4;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await daemonRequest(baseUrl, token, "/api/knowledge-assets", {
+        method: "POST",
+        body: JSON.stringify({
+          contextGraphId,
+          name,
+          quads,
+          finalize: true,
+          alsoShareSwm: true,
+        }),
+      });
+      lastError = undefined;
+      break;
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      // Stuck mid-promote / already finalized: recover by reading current UAL.
+      if (
+        message.includes("unfinished promote") ||
+        message.includes("already exists") ||
+        message.includes("already published")
+      ) {
+        const recovered = await readPublishedUal(
+          baseUrl,
+          token,
+          contextGraphId,
+          name
+        );
+        if (recovered) {
+          return { ual: recovered };
+        }
       }
+      if (isUnknownAccessPolicyError(message) && attempt < maxAttempts) {
+        await sleep(2000 * attempt);
+        continue;
+      }
+      if (isUnknownAccessPolicyError(message)) {
+        throw new Error(unknownAccessPolicyHint(contextGraphId), { cause: err });
+      }
+      throw err;
     }
-    throw err;
+  }
+  if (lastError) {
+    throw lastError;
   }
 
   const published = await daemonRequest<{ ual?: string }>(
@@ -125,16 +141,6 @@ function isHttp404(err: unknown): boolean {
   );
 }
 
-function termString(value: unknown): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (value == null) {
-    return "";
-  }
-  return String(value);
-}
-
 type KaDescriptor = {
   name?: string;
   assertionGraph?: string;
@@ -152,7 +158,7 @@ export async function getAssetQuadsByUal(
   token: string,
   targetUal: string,
   contextGraphId: string
-): Promise<AssetQuadBinding[]> {
+): Promise<TargetAssetBinding[]> {
   const ual = targetUal.trim();
   if (!ual) {
     return [];
@@ -202,38 +208,8 @@ export async function getAssetQuadsByUal(
   );
 
   return bindings.map((row) => ({
-    subject: termString(row["subject"]),
-    predicate: termString(row["predicate"]),
-    object: termString(row["object"]),
+    subject: sparqlTermValue(row["subject"]),
+    predicate: sparqlTermValue(row["predicate"]),
+    object: sparqlTermValue(row["object"]),
   }));
-}
-
-export async function queryDaemon(
-  baseUrl: string,
-  token: string,
-  sparql: string,
-  contextGraphId: string
-): Promise<{ bindings: SparqlBindings }> {
-  const result = await daemonRequest<{
-    type?: string;
-    bindings?: SparqlBindings;
-    result?: { bindings?: SparqlBindings };
-  }>(baseUrl, token, "/api/query", {
-    method: "POST",
-    body: JSON.stringify({ sparql, contextGraphId }),
-  });
-
-  if (result.type === "bindings" && Array.isArray(result.bindings)) {
-    return { bindings: result.bindings };
-  }
-
-  if (Array.isArray(result.result?.bindings)) {
-    return { bindings: result.result.bindings };
-  }
-
-  if (Array.isArray(result.bindings)) {
-    return { bindings: result.bindings };
-  }
-
-  return { bindings: [] };
 }

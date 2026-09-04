@@ -4,7 +4,7 @@ import {
   publishAssertion,
   queryDaemon,
   readPublishedUal,
-} from "./api.js";
+} from "./api/index.js";
 import { readAuthToken, resolveApiBaseUrl } from "./config.js";
 import { daemonRequest } from "./http.js";
 import type { DaemonClient, DaemonConnectConfig } from "./types.js";

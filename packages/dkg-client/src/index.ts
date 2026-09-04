@@ -1,137 +1,68 @@
-import {
-  BASE_SEPOLIA_CHAIN_ID,
-  DEFAULT_BASE_SEPOLIA_HUB_ADDRESS,
-  DkgConfig,
-  KnowledgeAssetPublishResult,
-  PublishAssetParams,
-  PublishRatingParams,
-  PublishRatingResult,
-  SparqlBindings,
-} from "@desci/shared";
-import { connectDaemon } from "./daemon/index.js";
-import {
-  SCHEMA_ABOUT,
-  SCHEMA_AUTHOR,
-  SCHEMA_RATING_VALUE,
-  sparqlIri,
-  sparqlTermValue,
-} from "./daemon/sparql.js";
-import { publishRatingAssertion } from "./ratings.js";
-
 export type { PublishRatingParams, PublishRatingResult } from "@desci/shared";
 
-export type TargetAssetBinding = {
-  subject: string;
-  predicate: string;
-  object: string;
-};
+export type {
+  PublicationAuthor,
+  PublicationMetadata,
+  PublicationResource,
+  PublicationResourceKind,
+  PublicationSection,
+  PublicationSectionKind,
+  PublishAssertionDeps,
+  PublishPublicationParams,
+  PublishPublicationResult,
+  RatingBinding,
+  TargetAssetBinding,
+} from "./schema/index.js";
 
-export type RatingBinding = {
-  ratingSubject: string;
-  ratingValue: string;
-  author: string;
-};
+export {
+  DEO_DATASET_DESCRIPTION,
+  DEO_MATERIALS,
+  DEO_METHODS,
+  DEO_RESULTS,
+  RDF_TYPE,
+  SCHEMA_ADDITIONAL_TYPE,
+  SCHEMA_AUTHOR,
+  SCHEMA_CONTENT_URL,
+  SCHEMA_CREATOR,
+  SCHEMA_DATE_CREATED,
+  SCHEMA_DESCRIPTION,
+  SCHEMA_DISTRIBUTION,
+  SCHEMA_ENCODING,
+  SCHEMA_ENCODING_FORMAT,
+  SCHEMA_HAS_PART,
+  SCHEMA_IDENTIFIER,
+  SCHEMA_MEDIA_OBJECT,
+  SCHEMA_MENTIONS,
+  SCHEMA_NAME,
+  SCHEMA_PERSON,
+  SCHEMA_POSITION,
+  SCHEMA_SAME_AS,
+  SCHEMA_SCHOLARLY_ARTICLE,
+  SCHEMA_TEXT,
+} from "./schema/index.js";
 
-/** Thrown when the daemon has no quads for a target UAL (retriable). */
-export class TargetAssetNotIndexedError extends Error {
-  readonly code = "TargetAssetNotIndexed" as const;
+export {
+  buildPublicationGraph,
+  pdfIpfsUrlFromBindings,
+  publishPublicationKa,
+} from "./publication-ka/index.js";
 
-  constructor(targetUal: string) {
-    super(`TargetAssetNotIndexed: no triples found for ${targetUal}`);
-    this.name = "TargetAssetNotIndexedError";
-  }
-}
+export {
+  buildRatingGraph,
+  publishRatingKa,
+  queryRatingsAbout,
+} from "./rating-ka/index.js";
 
-export async function createDkgClient(config: DkgConfig = {}) {
-  const daemon = await connectDaemon({
-    apiUrl: config.apiUrl,
-    authToken: config.authToken,
-  });
+export {
+  createPublicationIdentity,
+  createRatingIdentity,
+  normalizeDoiIri,
+  normalizeIpfsIri,
+  normalizeOrcidIri,
+  nquadIntegerLiteral,
+  nquadStringLiteral,
+  scicrunchResolverIri,
+} from "./helpers/index.js";
 
-  return Object.freeze({
-    getChainId: () => BASE_SEPOLIA_CHAIN_ID,
-    getHubAddress: () => DEFAULT_BASE_SEPOLIA_HUB_ADDRESS,
-    getApiBaseUrl: () => daemon.baseUrl,
-    ensureContextGraph: async (id: string, name?: string) => {
-      await daemon.ensureContextGraph(id, name);
-    },
-    publishAsset: async (
-      params: PublishAssetParams
-    ): Promise<KnowledgeAssetPublishResult> => {
-      return daemon.publishAssertion(
-        params.contextGraphId,
-        params.name,
-        params.quads
-      );
-    },
-    /** Look up the on-chain UAL for a Knowledge Asset by daemon name. */
-    getAssetUal: async (
-      name: string,
-      contextGraphId: string
-    ): Promise<string | null> => {
-      return daemon.getAssetUal(contextGraphId, name);
-    },
-    publishRating: async (
-      params: PublishRatingParams
-    ): Promise<PublishRatingResult> => {
-      return publishRatingAssertion(
-        { publishAssertion: daemon.publishAssertion },
-        params
-      );
-    },
-    query: async (
-      sparql: string,
-      contextGraphId: string
-    ): Promise<{ bindings: SparqlBindings }> => {
-      return daemon.query(sparql, contextGraphId);
-    },
-    /**
-     * Load the Knowledge Asset assertion for a published UAL.
-     * Resolves the KA via the daemon identifier API, then dumps its assertion
-     * graph. Empty/404 → TargetAssetNotIndexedError.
-     */
-    getAssetQuadsByUal: async (
-      targetUal: string,
-      contextGraphId: string
-    ): Promise<{ bindings: TargetAssetBinding[] }> => {
-      const bindings = await daemon.getAssetQuadsByUal(
-        targetUal,
-        contextGraphId
-      );
-      if (bindings.length === 0) {
-        throw new TargetAssetNotIndexedError(targetUal);
-      }
-      return { bindings };
-    },
-    fetchRatingsForAsset: async (
-      targetUal: string,
-      contextGraphId: string
-    ): Promise<{ bindings: RatingBinding[] }> => {
-      const about = sparqlIri(SCHEMA_ABOUT);
-      const ratingValue = sparqlIri(SCHEMA_RATING_VALUE);
-      const author = sparqlIri(SCHEMA_AUTHOR);
-      const target = sparqlIri(targetUal);
-      const sparql = `
-        SELECT ?ratingSubject ?ratingValue ?author
-        WHERE {
-          ?ratingSubject ${about} ${target} ;
-                         ${ratingValue} ?ratingValue ;
-                         ${author} ?author .
-        }
-      `;
-      const { bindings } = await daemon.query(sparql, contextGraphId);
-      return {
-        bindings: bindings.map((row) => ({
-          ratingSubject: sparqlTermValue(row["ratingSubject"]),
-          ratingValue: sparqlTermValue(row["ratingValue"]),
-          author: sparqlTermValue(row["author"]),
-        })),
-      };
-    },
-    stop: async () => {
-      // Local daemon lifecycle is managed by `pnpm dkg:start` / `dkg stop`.
-    },
-  });
-}
-
-export type DkgClient = Awaited<ReturnType<typeof createDkgClient>>;
+export { TargetAssetNotIndexedError } from "./errors.js";
+export { createDkgClient, type DkgClient } from "./client.js";
