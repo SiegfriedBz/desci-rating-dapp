@@ -307,18 +307,18 @@ Suggested order: (1) AppKit + `getRatingByUal` read-only view, (2) `requestPhase
 
 ### Phase 2 — `requestPhase2` (human review)
 
-Eligible only when `phase == Phase1Completed`.
+Eligible only when `phase == Phase1Completed` and not already pending.
 
-- **`RatingController`**: add `requestPhase2` / `fulfillPhase2`. Fulfill stores `phase2Score`, sets `Phase2Completed`, and writes a `wetLabRecommended` boolean that gates Phase 3.
-- **`ReviewerPool`** (new contract): enroll/stake, Chainlink VRF cohort draw, disjoint redraw on no-consensus.
-- **Off-chain**: Inngest interrupt/resume over a review window; EIP-712 verdicts; `update()` the existing R-KA UAL; oracle calls `fulfillPhase2`.
+- **`RatingController`**: add `requestPhase2` / `fulfillPhase2`. Fulfill stores `phase2Score`, sets `Phase2Completed`, clears pending, and writes a `wetLabRecommended` boolean that gates Phase 3.
+- **`ReviewerPool`** (new contract, owned by `RatingController`): enroll/stake, Chainlink VRF cohort draw, optional disjoint redraw on no consensus.
+- **Off-chain**: HITL oracle flow triggered by the Phase-2 request event; oracle calls `fulfillPhase2`. `update()` the existing R-KA UAL (no new NFT).
 
 ### Phase 3 — `requestPhase3` (wet-lab)
 
 Eligible only when `phase == Phase2Completed` and `wetLabRecommended == true`.
 
-- **`RatingController`**: add `requestPhase3` / `fulfillPhase3`.
-- **Off-chain**: lab partner webhook, long-running Inngest interrupt/resume, `update()` the same R-KA, oracle `fulfillPhase3`. Lab-agnostic adapter.
+- **`RatingController`**: add `requestPhase3` / `fulfillPhase3`. Fulfill stores `phase3Score`, sets `Phase3Completed`, clears pending.
+- **Off-chain**: wet-lab oracle flow triggered by the Phase-3 request event; oracle calls `fulfillPhase3`. `update()` the same R-KA UAL (no new NFT).
 
 R-KA lifetime: mint once in Phase 1 (`rKaUal` stored on-chain); Phase 2 and 3 `update()` that same asset. No new NFT.
 
