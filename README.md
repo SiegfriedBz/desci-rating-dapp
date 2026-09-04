@@ -11,7 +11,7 @@ Publications are minted as **Target Knowledge Assets (KAs)** via a local DKG dae
 
 ## The problem
 
-OriginTrail DKG uses a **Dual Engine** architecture: every Knowledge Asset has two complementary representations — its RDF assertion triples are stored off-chain across the DKG peer network (queryable via SPARQL), while a corresponding NFT is minted on-chain (here, Base Sepolia) to anchor ownership and provenance. The on-chain NFT does not contain the data; it is a pointer. This gives KAs cryptographic guarantees and semantic queryability, but no quality signal. Agents traversing the graph to build hypotheses have no way to weight source reliability.
+OriginTrail DKG uses a **Dual Engine** architecture: every Knowledge Asset has two complementary representations — its RDF assertion triples are stored off-chain across the DKG peer network (queryable via SPARQL), while a corresponding NFT is minted on-chain (here, Base Sepolia) to anchor ownership and provenance with cryptographic proofs. The on-chain NFT does not contain the data; it is a pointer. This gives KAs cryptographic guarantees and semantic queryability, but no quality signal. Agents traversing the graph to build hypotheses have no way to weight source reliability.
 
 This repo builds the infrastructure to attach a rating to any KA without modifying it: an independent on-chain asset that evolves as evidence accumulates across three phases (machine score → human review → wet-lab).
 
