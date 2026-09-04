@@ -30,6 +30,8 @@ async function main(): Promise<void> {
     targetUal,
     score: PHASE_ONE_SCORE,
     author: PHASE_ONE_AUTHOR,
+    description:
+      "Placeholder Phase-1 verdict from dkg:publish-rating (no LLM run).\n\nObserved:\n- (none)\n\nMissing:\n- (none)",
   });
 
   console.log("Rating Knowledge Asset (R-KA) published successfully.");

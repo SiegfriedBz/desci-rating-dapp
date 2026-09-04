@@ -1,13 +1,14 @@
 export const BASE_SEPOLIA_CHAIN_ID = 84532;
-export const DEFAULT_BASE_SEPOLIA_HUB_ADDRESS =
+
+/** OriginTrail DKG Hub contract on Base Sepolia (chain id 84532). */
+export const DEFAULT_ORIGINTRAIL_DKG_HUB_CONTRACT_ADDRESS_BASE_SEPOLIA =
   "0xC056e67Da4F51377Ad1B01f50F655fFdcCD809F6";
 
-export type RatingMetadata = {
-  targetUal: string;
-  score: number;
-  methodology: string;
-  timestamp: number;
-  evaluator: string;
+export type DkgConfig = {
+  /** Override daemon base URL, e.g. http://127.0.0.1:9200 */
+  apiUrl?: string;
+  /** Bearer token; defaults to ~/.dkg/auth.token */
+  authToken?: string;
 };
 
 export type KnowledgeAssetQuad = {
@@ -15,13 +16,6 @@ export type KnowledgeAssetQuad = {
   predicate: string;
   object: string;
   graph?: string;
-};
-
-export type DkgConfig = {
-  /** Override daemon base URL, e.g. http://127.0.0.1:9200 */
-  apiUrl?: string;
-  /** Bearer token; defaults to ~/.dkg/auth.token */
-  authToken?: string;
 };
 
 export type PublishAssetParams = {
@@ -35,6 +29,8 @@ export type KnowledgeAssetPublishResult = {
   ual: string;
 };
 
+export type SparqlBindings = Record<string, string>[];
+
 /** Mint a Phase-1 rating Knowledge Asset (R-KA) linked to a target publication UAL. */
 export type PublishRatingParams = {
   contextGraphId: string;
@@ -42,6 +38,8 @@ export type PublishRatingParams = {
   targetUal: string;
   score: number;
   author: string;
+  /** Phase-1 verdict prose stored as schema:description on the R-KA. */
+  description: string;
   /** Named KA within the context graph; defaults to a unique `desci-rating-*` id. */
   name?: string;
 };
@@ -52,5 +50,3 @@ export type PublishRatingResult = KnowledgeAssetPublishResult & {
   /** Daemon Knowledge Asset name used for publish. */
   name: string;
 };
-
-export type SparqlBindings = Record<string, string>[];

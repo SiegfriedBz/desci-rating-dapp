@@ -1,22 +1,26 @@
-/** Read a required process.env value (trimmed). */
-export function requireEnv(name: string, hint?: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    const suffix = hint ? ` ${hint}` : "";
-    throw new Error(`Missing ${name}.${suffix}`);
-  }
-  return value;
+import { env, requireEnv as requireEnvValue } from "@desci/env";
+
+/** Env keys whose catalogued values are strings (not coerced numbers). */
+type StringEnvKey = {
+  [K in keyof typeof env]: (typeof env)[K] extends string | undefined
+    ? K
+    : never;
+}[keyof typeof env];
+
+/** Read a required catalogued string env value. */
+export function requireEnv(name: StringEnvKey, hint?: string): string {
+  const suffix = hint ? ` ${hint}` : "";
+  return requireEnvValue(env[name], `Missing ${name}.${suffix}`);
 }
 
-/** Prefer argv[index], else process.env[name]. */
+/** Prefer argv[index], else the catalogued env value. */
 export function argOrEnv(
   argvIndex: number,
-  envName: string
+  envName: StringEnvKey
 ): string | undefined {
   const fromArg = process.argv[argvIndex]?.trim();
   if (fromArg) {
     return fromArg;
   }
-  const fromEnv = process.env[envName]?.trim();
-  return fromEnv || undefined;
+  return env[envName] || undefined;
 }

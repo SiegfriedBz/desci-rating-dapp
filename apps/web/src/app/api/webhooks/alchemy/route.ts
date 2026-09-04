@@ -7,6 +7,7 @@ import {
   inngest,
   processRatingControllerEvent,
 } from "@desci/agents/inngest";
+import { env } from "@desci/env";
 import { NextResponse } from "next/server";
 import { decodeEventLog, getAddress, type Hex } from "viem";
 
@@ -70,7 +71,7 @@ function resolveLogAddress(log: AlchemyLog): `0x${string}` | null {
 
 export async function POST(request: Request) {
   try {
-    const secret = process.env["ALCHEMY_BASE_SEPOLIA_WH_SK"];
+    const secret = env.ALCHEMY_BASE_SEPOLIA_WH_SK;
     if (!secret) {
       return NextResponse.json(
         { error: "ALCHEMY_BASE_SEPOLIA_WH_SK is not configured" },

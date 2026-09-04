@@ -1,15 +1,13 @@
 import type { KnowledgeAssetQuad, SparqlBindings } from "@desci/shared";
+import type { TargetAssetBinding } from "../schema/types.js";
 
 export type DaemonConnectConfig = {
   apiUrl?: string;
   authToken?: string;
 };
 
-export type AssetQuadBinding = {
-  subject: string;
-  predicate: string;
-  object: string;
-};
+/** Alias of TargetAssetBinding for daemon-layer callers. */
+export type AssetQuadBinding = TargetAssetBinding;
 
 export type DaemonClient = {
   baseUrl: string;
@@ -28,7 +26,7 @@ export type DaemonClient = {
   getAssetQuadsByUal: (
     targetUal: string,
     contextGraphId: string
-  ) => Promise<AssetQuadBinding[]>;
+  ) => Promise<TargetAssetBinding[]>;
   query: (
     sparql: string,
     contextGraphId: string

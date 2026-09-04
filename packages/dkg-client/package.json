@@ -15,6 +15,7 @@
     "clean": "rm -rf dist out"
   },
   "dependencies": {
+    "@desci/env": "workspace:*",
     "@desci/shared": "workspace:*"
   },
   "devDependencies": {

@@ -1,0 +1,21 @@
+# Local GROBID sidecar for PDF fulltext → TEI. Not part of the DKG daemon stack.
+# Usage: pnpm grobid:up / pnpm grobid:down
+# Health (from host): curl -s http://127.0.0.1:8070/api/isalive  → true
+#
+# Image flavour matters: since 0.8.2 an unsuffixed tag (grobid/grobid:0.8.2)
+# means the ~17GB *full* build, which preloads DeLFT/TensorFlow models and wants
+# a GPU. On CPU it can stall before Jetty binds. The `-crf` build is ~500MB,
+# CPU-only, boots in seconds, and covers processFulltextDocument — all this
+# pipeline needs. See https://grobid.readthedocs.io/en/latest/Grobid-docker/
+#
+# network_mode: host publishes 8070 directly instead of going through
+# docker-proxy. Linux only; on Docker Desktop replace it with `ports: ["8070:8070"]`.
+services:
+  grobid:
+    image: grobid/grobid:0.8.2-crf
+    network_mode: host
+    init: true
+    ulimits:
+      core: 0
+    environment:
+      JAVA_OPTS: "-Xmx2g"

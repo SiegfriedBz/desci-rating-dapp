@@ -12,6 +12,7 @@
     "@desci/agents": "workspace:*",
     "@desci/contracts": "workspace:*",
     "@desci/dkg-client": "workspace:*",
+    "@desci/env": "workspace:*",
     "@desci/shared": "workspace:*",
     "inngest": "^3.44.3",
     "next": "16.3.3",
