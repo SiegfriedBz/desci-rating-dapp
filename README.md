@@ -49,15 +49,25 @@ Alchemy Notify must watch this address. `ORACLE_AGENT` / `ORACLE_AGENT_PRIVATE_K
 ### Current: CLI ingest + Phase-1 oracle
 
 ```mermaid
-flowchart LR
+flowchart TD
   subgraph ingest["Publication ingest (CLI)"]
-    PDF["PDF"] --> PIN["Pinata pin"] --> GROBID["GROBID TEI"] --> META["Gemini metadata"] --> TKA["Target KA UAL"]
+    PDF["PDF"] --> PIN["Pinata pin"]
+    PIN --> GROBID["GROBID TEI"]
+    GROBID --> META["Gemini metadata"]
+    META --> TKA["Target KA UAL"]
   end
+
   subgraph oracle["Phase-1 oracle"]
-    RC["requestPhase1(targetUal)"] --> ALCH["Alchemy Notify"] --> WH["/api/webhooks/alchemy"] --> INN["Inngest"] --> FETCH["getAssetQuadsByUal"] --> SCORE["runKaScorerAgent"] --> RKA["publishRating R-KA"] --> FUL["fulfillPhase1"]
-    FUL --> RC
+    REQ["requestPhase1(targetUal)\n— emits Phase1Requested"] --> ALCH["Alchemy Notify"]
+    ALCH --> WH["/api/webhooks/alchemy"]
+    WH --> INN["Inngest\nphase1-requested"]
+    INN --> FETCH["getAssetQuadsByUal"]
+    FETCH --> SCORE["runKaScorerAgent"]
+    SCORE --> RKA["publishRating R-KA"]
+    RKA --> FUL["fulfillPhase1(targetUal, score, rKaUal)\n— emits Phase1Fulfilled"]
   end
-  TKA -.->|"caller passes targetUal"| RC
+
+  TKA -.->|"caller passes targetUal"| REQ
 ```
 
 ### Planned: Web ingest (not yet built)
