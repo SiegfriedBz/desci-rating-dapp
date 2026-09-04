@@ -51,43 +51,56 @@ Alchemy Notify must watch this address. `ORACLE_AGENT` / `ORACLE_AGENT_PRIVATE_K
 ```mermaid
 flowchart TD
   subgraph ingest["Publication ingest (CLI)"]
-    PDF["PDF"] --> PIN["Pinata pin"]
-    PIN --> GROBID["GROBID TEI"]
-    GROBID --> META["Gemini metadata"]
-    META --> TKA["Target KA UAL"]
+    PDF["PDF"] --> PIN["Pinata pin\n→ ipfs:// CID"]
+    PIN --> GROBID["GROBID\n→ TEI-XML"]
+    GROBID --> META["Gemini structured extract\n→ PublicationMetadata"]
+    META --> DAEMON["DKG daemon\n① stores RDF assertion off-chain on DKG network\n② mints KA as NFT on-chain via /vm/publish"]
+    DAEMON --> UAL["Target KA UAL"]
   end
 
   subgraph oracle["Phase-1 oracle"]
     REQ["requestPhase1(targetUal)\n— emits Phase1Requested"] --> ALCH["Alchemy Notify"]
     ALCH --> WH["/api/webhooks/alchemy"]
     WH --> INN["Inngest\nphase1-requested"]
-    INN --> FETCH["getAssetQuadsByUal"]
-    FETCH --> SCORE["runKaScorerAgent"]
-    SCORE --> RKA["publishRating R-KA"]
+    INN --> FETCH["getAssetQuadsByUal\n→ RDF triples from DKG"]
+    FETCH --> SCORE["runKaScorerAgent\n→ { score, rationale, observed, missing }"]
+    SCORE --> RKA["DKG daemon\npublishRating: mint R-KA NFT\n(schema:about targetUal, schema:ratingValue score)"]
     RKA --> FUL["fulfillPhase1(targetUal, score, rKaUal)\n— emits Phase1Fulfilled"]
   end
 
-  TKA -.->|"caller passes targetUal"| REQ
+  UAL -.->|"caller passes targetUal"| REQ
 ```
 
-### Planned: Web ingest (not yet built)
+### Planned: Web ingest — PDF upload → Target KA (not yet built)
 
 ```mermaid
 flowchart TD
-  subgraph web["Web app (to build)"]
+  subgraph web_ingest["Web app (to build)"]
     UP["User uploads PDF"] --> SA["Server Action / API route"]
-    SA --> PIN2["pinPdfToIpfs"]
-    PIN2 --> INN2["inngest.send(pdf.submitted)"]
+    SA --> PIN2["pinPdfToIpfs\n→ ipfs:// CID"]
+    PIN2 --> INN2["inngest.send(pdf.submitted)\n{ pdfCid, filename, contextGraphId }"]
   end
-  subgraph ingest_fn["Inngest: pdf-submitted (to build)"]
-    INN2 --> FETCHPDF["fetchPdfByCid"]
-    FETCHPDF --> AGENT["runPdfToKaAgent\n(GROBID → Gemini → DKG publish)"]
-    AGENT --> REQ["requestPhase1(ual)\nfrom server relayer or user wallet"]
+  subgraph fn_ingest["Inngest: pdf-submitted (to build)"]
+    INN2 --> FETCHPDF["fetchPdfByCid\n→ PDF bytes"]
+    FETCHPDF --> GROBID2["GROBID → TEI-XML"]
+    GROBID2 --> META2["Gemini → PublicationMetadata"]
+    META2 --> DAEMON2["DKG daemon\n① off-chain RDF assertion\n② on-chain KA NFT"]
+    DAEMON2 --> UAL2["Target KA UAL\n→ returned to user"]
   end
-  REQ --> existing["→ existing Phase-1 oracle pipeline"]
 ```
 
-The `runPdfToKaAgent` function is already decoupled from file I/O and pinning — callers pin first and pass `{ pdf, pdfCid }`. The CLI does this composition today; an Inngest function should too (GROBID + Gemini + DKG publish can exceed a single HTTP timeout).
+### Planned: Web ingest — Request Phase-1 rating on a KA (not yet built)
+
+```mermaid
+flowchart TD
+  subgraph web_rating["Web app (to build)"]
+    USER["User selects / enters a Target KA UAL"] --> WALLET["Wallet connect\n(Reown AppKit, Base Sepolia)"]
+    WALLET --> TX["requestPhase1(targetUal)\non-chain tx from user wallet"]
+  end
+  TX --> existing["→ existing Phase-1 oracle pipeline\n(Alchemy → Inngest → score → R-KA → fulfillPhase1)"]
+```
+
+The `runPdfToKaAgent` function is already decoupled from file I/O and pinning — callers pin first and pass `{ pdf, pdfCid }`. The CLI does this composition today; an Inngest function should too (GROBID + Gemini + DKG publish can exceed a single HTTP timeout). PDF ingest and rating request are independent flows: a user may publish a KA without immediately requesting a rating, or request a rating on any existing KA UAL.
 
 ---
 
