@@ -46,6 +46,7 @@ loadMonorepoRootEnv();
 const nextConfig: NextConfig = {
   transpilePackages: [
     "@desci/shared",
+    "@desci/env",
     "@desci/dkg-client",
     "@desci/agents",
     "@desci/contracts",
