@@ -154,6 +154,16 @@ pnpm dkg:init --network testnet   # first-time daemon setup only
 pnpm build
 ```
 
+### Vercel preview (`apps/web`)
+
+Set the Vercel project **Root Directory** to `apps/web` (include files outside that directory for the monorepo). Framework Preset = **Next.js**. Leave **Output Directory** empty (do not set `public`). [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and runs `pnpm turbo run build --filter=web` (dependencies via Turbo `^build`).
+
+If a Preview URL returns Vercel `404 NOT_FOUND` while the deployment is Ready: confirm Framework = Next.js and Output Directory is blank, then Redeploy without cache. Check the deployment **Output** tab for Next routes (`/`, `/_next/...`).
+
+`@desci/contracts` package `build` is `tsc` over committed `ts/` ABI files — Foundry is not on Vercel. After Solidity changes, regenerate with `pnpm contracts:build` (Forge) and commit `packages/contracts/ts/`.
+
+Preview env: at least `NEXT_PUBLIC_REOWN_PROJECT_ID`. Add the preview hostname under Allowed Origins in [Reown Cloud](https://dashboard.reown.com).
+
 ---
 
 ## Environment
@@ -180,6 +190,9 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 | `ETHERSCAN_API_KEY` | `forge script --verify` |
 | `ALCHEMY_BASE_SEPOLIA_WH_SK` | HMAC secret for `/api/webhooks/alchemy` |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Cloud Inngest only; not needed for local Dev Server |
+| `NEXT_PUBLIC_REOWN_PROJECT_ID` | Reown AppKit (apps/web). Optional — landing builds without it |
+| `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` | Footer portfolio link. Optional |
+| `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | Footer LinkedIn link. Optional |
 
 Never commit `.env`.
 
@@ -293,7 +306,9 @@ LLM: LangChain `ChatGoogleGenerativeAI` + Zod structured output. No LangGraph.
 
 ### Dapp — Phase 1 in the browser
 
-**Wallet:** wire Reown AppKit (no wallet dependency exists today). Enforce Base Sepolia (chain id `84532`). Use `ratingControllerAbi` + `getRatingControllerAddress(84532)` from `@desci/contracts`.
+**Shell (`feat/web-shell`):** VeriSci landing + Reown AppKit on Base Sepolia (`NEXT_PUBLIC_REOWN_PROJECT_ID`). Catalog table, PDF upload, and `requestPhase1` UI still later.
+
+**Wallet:** Reown AppKit on Base Sepolia (chain id `84532`). Use `ratingControllerAbi` + `getRatingControllerAddress(84532)` from `@desci/contracts` for later txs.
 
 **PDF upload → Target KA:** an Inngest function that runs `pinPdfToIpfs` → `fetchPdfByCid` → `runPdfToKaAgent` and returns the UAL. GROBID + Gemini + DKG publish can exceed a single HTTP timeout — an Inngest job is safer. The DKG daemon is local in V0; a public deployment requires a remotely reachable node. Open question: where GROBID runs (Docker sidecar, dedicated service, or remote URL).
 

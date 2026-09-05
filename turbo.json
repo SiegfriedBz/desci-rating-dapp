@@ -1,9 +1,39 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "NEXT_PUBLIC_REOWN_PROJECT_ID",
+    "NEXT_PUBLIC_CONTACT_PORTFOLIO_URL",
+    "NEXT_PUBLIC_CONTACT_LINKEDIN_URL",
+    "DKG_CONTEXT_GRAPH_ID",
+    "GROBID_URL",
+    "PINATA_API_KEY",
+    "PINATA_API_SK",
+    "PINATA_JWT",
+    "BASE_SEPOLIA_RPC_URL",
+    "PRIVATE_KEY",
+    "ORACLE_AGENT",
+    "ORACLE_AGENT_PRIVATE_KEY",
+    "ETHERSCAN_API_KEY",
+    "ALCHEMY_BASE_SEPOLIA_WH_SK",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "STITCH_API_KEY",
+    "INNGEST_EVENT_KEY",
+    "INNGEST_SIGNING_KEY"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**", "out/**"]
+      "outputs": ["dist/**", "out/**"]
+    },
+    "web#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_REOWN_PROJECT_ID",
+        "NEXT_PUBLIC_CONTACT_PORTFOLIO_URL",
+        "NEXT_PUBLIC_CONTACT_LINKEDIN_URL"
+      ]
     },
     "test": {
       "dependsOn": ["build"],

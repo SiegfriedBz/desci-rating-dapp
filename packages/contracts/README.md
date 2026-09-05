@@ -6,7 +6,8 @@ Package scripts (`pnpm --filter @desci/contracts …`):
 
 | Script | Command |
 | --- | --- |
-| `build` | `forge build` → `scripts/export-abi.mjs` → `tsc` (`ts/` → `dist/`) |
+| `build` | `tsc` only (`ts/` → `dist/`) — used by Turbo / Vercel; no Foundry |
+| `build:forge` | `forge build` → `scripts/export-abi.mjs` → `tsc` (regenerate ABI after Solidity changes) |
 | `test` | `forge test` |
 | `test:vv` | `forge test -vv` |
 | `test:gas` | `forge test --gas-report` |
@@ -14,7 +15,7 @@ Package scripts (`pnpm --filter @desci/contracts …`):
 | `deploy:base-sepolia` | `forge script script/RatingController.s.sol:RatingControllerScript --rpc-url base_sepolia --broadcast --verify --private-key $PRIVATE_KEY -vvvv` |
 | `clean` | `forge clean` and remove `dist` / `out` |
 
-Repo-root wrappers: `pnpm contracts:build`, `contracts:test`, `contracts:test:vv`, `contracts:test:gas`, `contracts:coverage`, `contracts:deploy:base-sepolia` (the last sources repo-root `.env` then runs `deploy:base-sepolia`).
+Repo-root wrappers: `pnpm contracts:build` (runs `build:forge`), `contracts:test`, `contracts:test:vv`, `contracts:test:gas`, `contracts:coverage`, `contracts:deploy:base-sepolia` (the last sources repo-root `.env` then runs `deploy:base-sepolia`).
 
 Exports (package `.` from `ts/index.ts`):
 
