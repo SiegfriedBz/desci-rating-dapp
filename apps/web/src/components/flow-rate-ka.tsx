@@ -17,7 +17,7 @@ export function FlowRateKa() {
               <p className="text-sm font-semibold text-foreground">
                 Rate Existing KA Pipeline
               </p>
-              <span className="rounded-full border border-border bg-background/60 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-muted">
+              <span className="rounded-full border border-border bg-background/60 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-muted text-nowrap">
                 5 steps
               </span>
             </div>

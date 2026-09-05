@@ -16,7 +16,7 @@ const phases = [
   {
     n: "03",
     title: "Wet-lab",
-    status: "Later",
+    status: "Next",
     live: false,
     body: "requestPhase3 opens only after Phase 2, when a wet-lab check is recommended. A Phase-3 score is written last.",
   },
