@@ -1,15 +1,4 @@
-import { env } from "@desci/env";
-
-const DEFAULT_GROBID_URL = "http://127.0.0.1:8070";
-const DEFAULT_TIMEOUT_MS = 120_000;
-
-function grobidBaseUrl(): string {
-  return (env.GROBID_URL || DEFAULT_GROBID_URL).replace(/\/$/, "");
-}
-
-function grobidTimeoutMs(): number {
-  return env.GROBID_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS;
-}
+import { grobidTimeoutMs, grobidUrl } from "@desci/env";
 
 /**
  * POST PDF bytes to GROBID `/api/processFulltextDocument` and return TEI-XML.
@@ -18,7 +7,7 @@ export async function processPdfWithGrobid(
   pdf: Uint8Array,
   filename = "paper.pdf"
 ): Promise<string> {
-  const url = `${grobidBaseUrl()}/api/processFulltextDocument`;
+  const url = `${grobidUrl}/api/processFulltextDocument`;
   const form = new FormData();
   form.append(
     "input",
@@ -27,7 +16,7 @@ export async function processPdfWithGrobid(
   );
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), grobidTimeoutMs());
+  const timer = setTimeout(() => controller.abort(), grobidTimeoutMs);
 
   let response: Response;
   try {
@@ -39,7 +28,7 @@ export async function processPdfWithGrobid(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new Error(
-      `GROBID request failed (${url}): ${message}. Is Docker/GROBID running? Try \`pnpm grobid:up\` and curl ${grobidBaseUrl()}/api/isalive`
+      `GROBID request failed (${url}): ${message}. Is Docker/GROBID running? Try \`pnpm grobid:up\` and curl ${grobidUrl}/api/isalive`
     );
   } finally {
     clearTimeout(timer);

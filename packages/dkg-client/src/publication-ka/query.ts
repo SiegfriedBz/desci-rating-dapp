@@ -79,9 +79,12 @@ export function ualFromVerifiableMemoryGraphIri(
 /**
  * List ScholarlyArticle publications with resolved KA UALs and optional ratings.
  *
- * Assertion subjects are DOI/urn IRIs; the on-chain UAL is encoded in the
- * named GRAPH IRI under `_verifiable_memory` (not via `dkg:rootEntity` meta
- * on this daemon). Ratings `schema:about` that UAL.
+ * Each on-chain KA (NFT token / VM graph) is its own catalog row. Do **not**
+ * collapse by DOI/`subjectUri` — republishing the same paper mints a new UAL
+ * and ratings `schema:about` that specific UAL.
+ *
+ * R-KA graphs (from the rating query) are excluded so a rating mint never
+ * appears as a publication row.
  */
 export async function queryPublicationsWithRatings(
   query: SparqlQueryFn,
@@ -102,40 +105,6 @@ export async function queryPublicationsWithRatings(
       }
     }
   `;
-  const { bindings: pubRows } = await query(pubSparql, contextGraphId);
-
-  type PubHit = {
-    pub: string;
-    subjectUri: string;
-    title: string | null;
-    tokenId: number;
-  };
-  /** Latest VM version per assertion subject (highest token id). */
-  const latestBySubject = new Map<string, PubHit>();
-
-  for (const row of pubRows) {
-    const graphIri = term(row, "g");
-    const subjectUri = term(row, "subjectUri");
-    if (!graphIri || !subjectUri) {
-      continue;
-    }
-    const parsed = ualFromVerifiableMemoryGraphIri(graphIri);
-    if (!parsed) {
-      continue;
-    }
-    const titleRaw = term(row, "title");
-    const title = titleRaw ? literalLexicalForm(titleRaw) : null;
-    const prev = latestBySubject.get(subjectUri);
-    if (!prev || parsed.tokenId > prev.tokenId) {
-      latestBySubject.set(subjectUri, {
-        pub: parsed.ual,
-        subjectUri,
-        title,
-        tokenId: parsed.tokenId,
-      });
-    }
-  }
-
   const ratingSparql = `
     SELECT DISTINCT ?g ?about ?ratingValue
     WHERE {
@@ -145,11 +114,15 @@ export async function queryPublicationsWithRatings(
       }
     }
   `;
-  const { bindings: ratingRows } = await query(ratingSparql, contextGraphId);
+
+  const [{ bindings: pubRows }, { bindings: ratingRows }] = await Promise.all([
+    query(pubSparql, contextGraphId),
+    query(ratingSparql, contextGraphId),
+  ]);
 
   type RatingHit = { ratingUal: string; ratingValue: string; tokenId: number };
-  /** Prefer the highest-token R-KA when several rate the same target UAL. */
   const ratingsByAbout = new Map<string, RatingHit>();
+  const ratingUals = new Set<string>();
 
   for (const row of ratingRows) {
     const graphIri = term(row, "g");
@@ -162,6 +135,7 @@ export async function queryPublicationsWithRatings(
     if (!parsed) {
       continue;
     }
+    ratingUals.add(parsed.ual);
     const ratingValue = literalLexicalForm(ratingValueRaw);
     const prev = ratingsByAbout.get(aboutIri);
     if (!prev || parsed.tokenId > prev.tokenId) {
@@ -173,20 +147,51 @@ export async function queryPublicationsWithRatings(
     }
   }
 
-  const out: PublicationWithRatingBinding[] = [];
-  for (const pub of latestBySubject.values()) {
-    const rating = ratingsByAbout.get(pub.pub) ?? null;
-    out.push(
+  /** One row per publication UAL (NFT token). */
+  const byUal = new Map<string, PublicationWithRatingBinding>();
+
+  for (const row of pubRows) {
+    const graphIri = term(row, "g");
+    const subjectUri = term(row, "subjectUri");
+    if (!graphIri || !subjectUri) {
+      continue;
+    }
+    const parsed = ualFromVerifiableMemoryGraphIri(graphIri);
+    if (!parsed) {
+      continue;
+    }
+    // Never list an R-KA mint as a publication.
+    if (ratingUals.has(parsed.ual)) {
+      continue;
+    }
+
+    const titleRaw = term(row, "title");
+    const title = titleRaw ? literalLexicalForm(titleRaw) : null;
+    const rating = ratingsByAbout.get(parsed.ual) ?? null;
+
+    const existing = byUal.get(parsed.ual);
+    // Same UAL can appear once per title binding; keep a non-empty title.
+    if (
+      existing &&
+      existing.title &&
+      (!title || title.trim().toLowerCase() === "untitled")
+    ) {
+      continue;
+    }
+
+    byUal.set(
+      parsed.ual,
       publicationWithRatingBindingSchema.parse({
-        pub: pub.pub,
-        subjectUri: pub.subjectUri,
-        title: pub.title,
-        ratingSubject: rating?.ratingUal ?? null,
+        pub: parsed.ual,
+        subjectUri,
+        title,
+        rKaUal: rating?.ratingUal ?? null,
         ratingValue: rating?.ratingValue ?? null,
       })
     );
   }
 
+  const out = [...byUal.values()];
   out.sort((a, b) => a.pub.localeCompare(b.pub));
   return { bindings: out };
 }

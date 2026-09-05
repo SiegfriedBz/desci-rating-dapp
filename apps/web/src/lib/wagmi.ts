@@ -1,12 +1,12 @@
 import { BASE_SEPOLIA_CHAIN_ID } from "@desci/shared";
+import { reownProjectId } from "@desci/env/client";
 import { baseSepolia } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { cookieStorage, createStorage } from "wagmi";
 
 /** Optional — missing key must not fail build; header shows a configure hint. */
-export const projectId =
-  process.env.NEXT_PUBLIC_REOWN_PROJECT_ID?.trim() || undefined;
+export const projectId = reownProjectId;
 
 export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [baseSepolia];
 

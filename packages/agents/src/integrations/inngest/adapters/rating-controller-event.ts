@@ -1,9 +1,10 @@
-import type { inngest as InngestClient } from "../client.js";
-import type {
-  OracleUpdatedData,
-  Phase1FulfilledData,
-  Phase1RequestedData,
-  RequestCancelledData,
+import {
+  InngestEvent,
+  type inngest as InngestClient,
+  type OracleUpdatedData,
+  type Phase1FulfilledData,
+  type Phase1RequestedData,
+  type RequestCancelledData,
 } from "../client.js";
 
 type DecodedContractEvent = {
@@ -74,7 +75,7 @@ export async function processRatingControllerEvent(
       };
       await inngest.send({
         id: `${requestId}-phase1`,
-        name: "RatingController/phase1.requested",
+        name: InngestEvent.Phase1Requested,
         data,
       });
       return;
@@ -90,7 +91,7 @@ export async function processRatingControllerEvent(
       };
       await inngest.send({
         id: `${requestId}-phase1-fulfilled`,
-        name: "RatingController/phase1.fulfilled",
+        name: InngestEvent.Phase1Fulfilled,
         data,
       });
       return;
@@ -104,7 +105,7 @@ export async function processRatingControllerEvent(
       };
       await inngest.send({
         id: `${requestId}-cancelled`,
-        name: "RatingController/request.cancelled",
+        name: InngestEvent.RequestCancelled,
         data,
       });
       return;
@@ -117,7 +118,7 @@ export async function processRatingControllerEvent(
       };
       await inngest.send({
         id: `${newAgent}-oracle-${blockNumber}`,
-        name: "RatingController/oracle.updated",
+        name: InngestEvent.OracleUpdated,
         data,
       });
       return;

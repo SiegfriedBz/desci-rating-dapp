@@ -2,10 +2,10 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { env } from "@desci/env";
+import { dkgApiPort, env } from "@desci/env";
 import type { DaemonConnectConfig } from "./types.js";
 
-function dkgHome(): string {
+function resolveDkgHome(): string {
   return env.DKG_HOME || join(homedir(), ".dkg");
 }
 
@@ -17,7 +17,8 @@ export async function readAuthToken(
     return fromEnv;
   }
 
-  const tokenPath = join(dkgHome(), "auth.token");
+  const home = resolveDkgHome();
+  const tokenPath = join(home, "auth.token");
   if (!existsSync(tokenPath)) {
     throw new Error(
       `Missing DKG auth token. Start the node with "pnpm dkg:start" or set DKG_AUTH_TOKEN.`
@@ -45,7 +46,8 @@ export async function resolveApiBaseUrl(
     return explicit.replace(/\/+$/, "");
   }
 
-  const portFile = join(dkgHome(), "api.port");
+  const home = resolveDkgHome();
+  const portFile = join(home, "api.port");
   if (existsSync(portFile)) {
     const port = (await readFile(portFile, "utf-8")).trim();
     if (port) {
@@ -53,7 +55,7 @@ export async function resolveApiBaseUrl(
     }
   }
 
-  const configPath = join(dkgHome(), "config.json");
+  const configPath = join(home, "config.json");
   if (existsSync(configPath)) {
     const daemonConfig = JSON.parse(await readFile(configPath, "utf-8")) as {
       apiPort?: number;
@@ -63,6 +65,5 @@ export async function resolveApiBaseUrl(
     }
   }
 
-  const port = env.DKG_API_PORT || "9200";
-  return `http://127.0.0.1:${port}`;
+  return `http://127.0.0.1:${dkgApiPort}`;
 }

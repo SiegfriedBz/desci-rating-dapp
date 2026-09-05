@@ -1,4 +1,16 @@
-export function Hero() {
+import { PublishKaButton } from "@/components/publish/publish-ka-button";
+import { Button } from "@/components/ui/button";
+import { DKG_UNAVAILABLE_USER_MESSAGE } from "@/lib/dkg-availability";
+
+type HeroProps = {
+  dkgAvailable: boolean;
+  dkgUnavailableReason?: string | null;
+};
+
+export function Hero({ dkgAvailable, dkgUnavailableReason }: HeroProps) {
+  const disabledReason =
+    dkgUnavailableReason?.trim() || DKG_UNAVAILABLE_USER_MESSAGE;
+
   return (
     <section className="relative isolate overflow-hidden border-b border-border">
       <div
@@ -31,19 +43,31 @@ export function Hero() {
           changing the original work.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3 sm:mt-9">
-          <a
-            href="#publish-ka"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-[0_12px_40px_rgba(45,212,191,0.18)] transition hover:brightness-110"
-          >
-            Publish KA
-            <span aria-hidden>↗</span>
-          </a>
-          <a
-            href="#rate-ka"
-            className="inline-flex h-12 items-center justify-center rounded-full border border-border bg-surface/70 px-6 text-sm font-semibold text-foreground backdrop-blur transition hover:border-accent/50 hover:bg-surface-elevated"
-          >
-            Rate existing KA
-          </a>
+          <PublishKaButton
+            label="Publish KA"
+            disabled={!dkgAvailable}
+            disabledReason={disabledReason}
+          />
+          {dkgAvailable ? (
+            <a
+              href="#rate-ka"
+              className="inline-flex h-12 items-center justify-center rounded-full border border-border bg-surface/70 px-6 text-sm font-semibold text-foreground backdrop-blur transition hover:border-accent/50 hover:bg-surface-elevated"
+            >
+              Rate existing KA
+            </a>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              disabled
+              title={disabledReason}
+              aria-disabled
+              className="rounded-full"
+            >
+              Rate existing KA
+            </Button>
+          )}
         </div>
         <p className="mt-8 max-w-md font-mono text-[10px] uppercase leading-5 tracking-[0.16em] text-muted/80 sm:mt-10 sm:max-w-none sm:text-xs sm:tracking-[0.18em]">
           OriginTrail DKG V10{" "}

@@ -26,7 +26,7 @@ Package scripts: `pnpm --filter @desci/agents build` (`tsc` → `dist/`) and `cl
 - **LLM**: LangChain `ChatGoogleGenerativeAI` + Zod structured output (`src/shared/llm/gemini.ts`). No LangGraph.
 - **Durable jobs**: Inngest under `src/integrations/` (Phase-1 RatingController only for now).
 
-Depends on `@desci/dkg-client` for daemon publish/query. Gemini: `GOOGLE_API_KEY` or `GEMINI_API_KEY`; optional `GEMINI_MODEL` (default `gemini-3.5-flash-lite`). Pin: `PINATA_JWT`. Fetch: optional `IPFS_GATEWAY_URL` (default `https://ipfs.io/ipfs`). The KA stores `ipfs://…` on `schema:encoding` / `schema:contentUrl`; Pinata is pin-only.
+Depends on `@desci/dkg-client` for daemon publish/query. Gemini: `GOOGLE_API_KEY` or `GEMINI_API_KEY`; optional `GEMINI_MODEL` (default `gemini-3.5-flash-lite`). Pin: `PINATA_JWT`. Fetch: `IPFS_GATEWAY_URL` (e.g. Pinata gateway). The KA stores `ipfs://…` on `schema:encoding` / `schema:contentUrl`.
 
 ## Composition (CLI today)
 

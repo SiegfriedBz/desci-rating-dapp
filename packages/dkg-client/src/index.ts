@@ -69,3 +69,4 @@ export {
 
 export { TargetAssetNotIndexedError } from "./errors.js";
 export { createDkgClient, type DkgClient } from "./client.js";
+export { probeDkgDaemon, type DkgProbeResult } from "./daemon/probe.js";

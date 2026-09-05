@@ -5,7 +5,7 @@ import {
   queryPublicationsWithRatings,
   type PublicationWithRatingBinding,
 } from "@desci/dkg-client";
-import { env, requireEnv } from "@desci/env";
+import { requireDkgContextGraphId } from "@desci/env";
 import type { KaRow } from "./kas-types";
 
 export type { KaRow } from "./kas-types";
@@ -38,10 +38,7 @@ function tokenIdFromUal(ual: string): number {
  * TODO: accept ?graph= URL param once oracle supports multi-graph
  */
 export async function getKas(): Promise<KaRow[]> {
-  const contextGraphId = requireEnv(
-    env.DKG_CONTEXT_GRAPH_ID,
-    "DKG_CONTEXT_GRAPH_ID is required to list Knowledge Assets"
-  );
+  const contextGraphId = requireDkgContextGraphId("listing Knowledge Assets");
 
   const client = await createDkgClient();
   try {
@@ -55,7 +52,7 @@ export async function getKas(): Promise<KaRow[]> {
           pub: binding.pub,
           subjectUri: binding.subjectUri,
           title: binding.title,
-          ratingSubject: binding.ratingSubject,
+          rKaUal: binding.rKaUal,
           ratingValue: parseRatingValue(binding.ratingValue),
         })
       )

@@ -1,6 +1,6 @@
 import { access, readFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
-import { env } from "@desci/env";
+import { dkgContextGraphIdOrDefault, env } from "@desci/env";
 import { runPdfToKaAgent } from "../src/agents/pdf-to-ka/index.js";
 import { pinPdfToIpfs } from "../src/ipfs/index.js";
 
@@ -37,7 +37,7 @@ async function main(): Promise<void> {
     throw new Error(`PDF not found: ${absolutePath}`);
   }
 
-  const contextGraphId = env.DKG_CONTEXT_GRAPH_ID || "desci-sample";
+  const contextGraphId = dkgContextGraphIdOrDefault;
   const kaName = env.DKG_KA_NAME || undefined;
   const filename = basename(absolutePath) || "paper.pdf";
 

@@ -48,7 +48,7 @@ async function waitForDaemonReady(
   throw lastErr instanceof Error
     ? lastErr
     : new Error(
-        'DKG daemon is not reachable. Start it with "pnpm dkg:start" and retry.'
+        'DKG daemon is not reachable. Try again later.'
       );
 }
 

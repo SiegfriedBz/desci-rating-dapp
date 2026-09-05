@@ -1,9 +1,10 @@
-export { inngest } from "./client.js";
+export { inngest, InngestEvent } from "./client.js";
 export type {
   Phase1RequestedData,
   Phase1FulfilledData,
   RequestCancelledData,
   OracleUpdatedData,
+  PdfSubmittedData,
 } from "./client.js";
 export {
   processRatingControllerEvent,
@@ -15,3 +16,4 @@ export {
   requestCancelledLogFunction,
   oracleUpdatedLogFunction,
 } from "./functions/log-contract-event.js";
+export { publishPdfFunction } from "./functions/publish-pdf.js";

@@ -74,11 +74,11 @@ export function useKaColumns(): ColumnDef<KaRow>[] {
         ),
     },
     {
-      accessorKey: "ratingSubject",
+      accessorKey: "rKaUal",
       header: KA_TABLE_HEADERS[3],
       cell: ({ row }) =>
-        row.original.ratingSubject ? (
-          <TruncatedIriWithTooltip iri={row.original.ratingSubject} />
+        row.original.rKaUal ? (
+          <TruncatedIriWithTooltip iri={row.original.rKaUal} />
         ) : (
           <MissingValue />
         ),

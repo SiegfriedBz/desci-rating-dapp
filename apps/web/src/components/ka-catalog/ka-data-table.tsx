@@ -19,9 +19,13 @@ import { useKaColumns } from "./ka-columns";
 
 type KaDataTableProps = {
   data: KaRow[];
+  emptyMessage?: string;
 };
 
-export function KaDataTable({ data }: KaDataTableProps) {
+export function KaDataTable({
+  data,
+  emptyMessage = "No publications indexed yet.",
+}: KaDataTableProps) {
   const columns = useKaColumns();
   const table = useReactTable({
     data,
@@ -32,7 +36,7 @@ export function KaDataTable({ data }: KaDataTableProps) {
   if (data.length === 0) {
     return (
       <div className="text-muted-foreground rounded-md border px-4 py-10 text-center text-sm">
-        No publications indexed yet.
+        {emptyMessage}
       </div>
     );
   }

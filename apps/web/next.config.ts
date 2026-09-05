@@ -58,6 +58,11 @@ const nextConfig: NextConfig = {
     "encoding",
     "@coinbase/cdp-sdk",
   ],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
   // Next 16 defaults to Turbopack; keep webpack externals for `next build --webpack`.
   turbopack: {},
   webpack: (config) => {

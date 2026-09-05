@@ -180,7 +180,7 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 | `GROBID_URL` | Default `http://127.0.0.1:8070` |
 | `GROBID_TIMEOUT_MS` | Optional; default `120000` |
 | `PINATA_JWT` | Required for `pnpm dkg:publish-pdf` |
-| `IPFS_GATEWAY_URL` | Optional; default `https://ipfs.io/ipfs` |
+| `IPFS_GATEWAY_URL` | Optional; defaults to Pinata public gateway (`ipfsGatewayUrl` in `@desci/env`) |
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `pdf-to-ka` + `ka-scorer` |
 | `GEMINI_MODEL` | Optional; default `gemini-3.5-flash-lite` |
 | `BASE_SEPOLIA_RPC_URL` | Deploy + `fulfillPhase1` |

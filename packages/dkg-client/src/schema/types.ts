@@ -29,8 +29,8 @@ export type PublicationWithRatingBinding = {
   /** RDF assertion subject (often a DOI IRI); null if unknown. */
   subjectUri: string | null;
   title: string | null;
-  /** R-KA UAL when a rating exists; null otherwise. */
-  ratingSubject: string | null;
+  /** R-KA on-chain UAL when a rating exists; null otherwise. */
+  rKaUal: string | null;
   ratingValue: string | null;
 };
 
@@ -43,7 +43,7 @@ export const publicationWithRatingBindingSchema: z.ZodType<PublicationWithRating
     pub: z.string(),
     subjectUri: z.string().nullable(),
     title: z.string().nullable(),
-    ratingSubject: z.string().nullable(),
+    rKaUal: z.string().nullable(),
     ratingValue: z.string().nullable(),
   });
 
