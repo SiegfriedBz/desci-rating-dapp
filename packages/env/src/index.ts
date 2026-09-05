@@ -4,21 +4,29 @@ import { z } from "zod";
 /** Free-tier Gemini Flash Lite default used across agents / publication quads. */
 export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 
+/** Default HTTP gateway for CID retrieval (Pinata public gateway). */
+export const DEFAULT_IPFS_GATEWAY_URL = "https://gateway.pinata.cloud/ipfs";
+
+/** Local GROBID Docker default (`pnpm grobid:up`). */
+export const DEFAULT_GROBID_URL = "http://127.0.0.1:8070";
+
+export const DEFAULT_GROBID_TIMEOUT_MS = 120_000;
+
+/** Fallback DKG daemon HTTP port when ~/.dkg/api.port is missing. */
+export const DEFAULT_DKG_API_PORT = "9200";
+
+/** Soft default context graph for CLI samples when env is unset. */
+export const DEFAULT_DKG_CONTEXT_GRAPH_ID = "verisci";
+
+export const DEFAULT_INNGEST_DEV_API_BASE_URL = "http://localhost:8288";
+
+export const DEFAULT_INNGEST_CLOUD_API_BASE_URL = "https://api.inngest.com";
+
 /**
- * Typed catalog of repo-root env vars. Keys are optional (or defaulted) so
- * importing this package never fails when only a subset of secrets is set —
- * callers use `requireEnv` at the feature boundary.
+ * Server env catalog — secrets and server-only config.
+ * For `NEXT_PUBLIC_*` use `@desci/env/client` instead (do not duplicate here).
  */
 export const env = createEnv({
-  clientPrefix: "NEXT_PUBLIC_",
-  client: {
-    /** Reown Cloud project id for AppKit (optional — UI degrades without it). */
-    NEXT_PUBLIC_REOWN_PROJECT_ID: z.string().min(1).optional(),
-    /** Footer portfolio URL (optional — link omitted when unset). */
-    NEXT_PUBLIC_CONTACT_PORTFOLIO_URL: z.string().url().optional(),
-    /** Footer LinkedIn URL (optional — link omitted when unset). */
-    NEXT_PUBLIC_CONTACT_LINKEDIN_URL: z.string().url().optional(),
-  },
   server: {
     // DKG daemon / scripts
     DKG_API_URL: z.string().optional(),
@@ -35,10 +43,9 @@ export const env = createEnv({
     GROBID_URL: z.string().optional(),
     GROBID_TIMEOUT_MS: z.coerce.number().positive().optional(),
 
-    // Pinata / IPFS (Pinata is pin-only; IPFS_GATEWAY_URL for retrieval)
+    // Pinata pins PDFs; IPFS_GATEWAY_URL overrides the default Pinata gateway.
     PINATA_JWT: z.string().optional(),
     IPFS_GATEWAY_URL: z.string().url().optional(),
-
 
     // Contracts / EVM (TS side; Foundry still reads PRIVATE_KEY / ORACLE_AGENT itself)
     BASE_SEPOLIA_RPC_URL: z.string().url().optional(),
@@ -61,6 +68,8 @@ export const env = createEnv({
     // Inngest
     INNGEST_EVENT_KEY: z.string().optional(),
     INNGEST_SIGNING_KEY: z.string().optional(),
+    /** Override Inngest REST API base (dev server or cloud). */
+    INNGEST_API_BASE_URL: z.string().url().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
@@ -74,9 +83,45 @@ export const geminiApiKey: string | undefined =
 /** Resolved Gemini model (env override or free-tier default). */
 export const geminiModel: string = env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
 
+/** Resolved IPFS HTTP gateway base (env override or Pinata public gateway). */
+export const ipfsGatewayUrl: string =
+  env.IPFS_GATEWAY_URL ?? DEFAULT_IPFS_GATEWAY_URL;
+
+/** Resolved GROBID base URL (no trailing slash). */
+export const grobidUrl: string = (
+  env.GROBID_URL ?? DEFAULT_GROBID_URL
+).replace(/\/$/, "");
+
+/** Resolved GROBID request timeout in ms. */
+export const grobidTimeoutMs: number =
+  env.GROBID_TIMEOUT_MS ?? DEFAULT_GROBID_TIMEOUT_MS;
+
+/** Resolved default DKG API port when no port file / DKG_API_URL is present. */
+export const dkgApiPort: string = env.DKG_API_PORT ?? DEFAULT_DKG_API_PORT;
+
+/**
+ * Soft CLI default for context graph id. Production paths should use
+ * {@link requireDkgContextGraphId} instead.
+ */
+export const dkgContextGraphIdOrDefault: string =
+  env.DKG_CONTEXT_GRAPH_ID ?? DEFAULT_DKG_CONTEXT_GRAPH_ID;
+
+/**
+ * Inngest REST API base for event run polling.
+ * Override with `INNGEST_API_BASE_URL`; otherwise cloud in production, local
+ * Dev Server otherwise.
+ */
+export const inngestApiBaseUrl: string = (
+  env.INNGEST_API_BASE_URL ??
+  (process.env.NODE_ENV === "production"
+    ? DEFAULT_INNGEST_CLOUD_API_BASE_URL
+    : DEFAULT_INNGEST_DEV_API_BASE_URL)
+).replace(/\/$/, "");
+
 /**
  * Throw when a feature-specific env value is missing at use time.
  * Prefer this over required Zod schemas so unused entrypoints can import `env`.
+ * Use only for secrets / required IDs that have no default.
  */
 export function requireEnv<T>(
   value: T | undefined,
@@ -86,4 +131,12 @@ export function requireEnv<T>(
     throw new Error(message);
   }
   return value as NonNullable<T>;
+}
+
+/** Require `DKG_CONTEXT_GRAPH_ID` for production DKG read/write paths. */
+export function requireDkgContextGraphId(purpose: string): string {
+  return requireEnv(
+    env.DKG_CONTEXT_GRAPH_ID,
+    `DKG_CONTEXT_GRAPH_ID is required for ${purpose}`
+  );
 }

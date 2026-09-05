@@ -1,9 +1,9 @@
 import { getRatingControllerAddress } from "@desci/contracts";
-import { env } from "@desci/env";
+import { clientEnv } from "@desci/env/client";
 import { BASE_SEPOLIA_CHAIN_ID } from "@desci/shared";
 
-const portfolioUrl = env.NEXT_PUBLIC_CONTACT_PORTFOLIO_URL;
-const linkedInUrl = env.NEXT_PUBLIC_CONTACT_LINKEDIN_URL;
+const portfolioUrl = clientEnv.NEXT_PUBLIC_CONTACT_PORTFOLIO_URL;
+const linkedInUrl = clientEnv.NEXT_PUBLIC_CONTACT_LINKEDIN_URL;
 const showContact = Boolean(portfolioUrl || linkedInUrl);
 
 const ratingController = getRatingControllerAddress(BASE_SEPOLIA_CHAIN_ID);

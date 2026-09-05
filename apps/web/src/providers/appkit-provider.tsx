@@ -34,7 +34,9 @@ export function AppKitProvider({
   const [queryClient] = useState(() => new QueryClient());
 
   if (!projectId || !wagmiAdapter) {
-    return <>{children}</>;
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
   }
 
   const initialState = cookieToInitialState(
