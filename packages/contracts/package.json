@@ -11,7 +11,8 @@
     }
   },
   "scripts": {
-    "build": "forge build && node scripts/export-abi.mjs && tsc",
+    "build": "tsc",
+    "build:forge": "forge build && node scripts/export-abi.mjs && tsc",
     "test": "forge test",
     "test:vv": "forge test -vv",
     "test:gas": "forge test --gas-report",

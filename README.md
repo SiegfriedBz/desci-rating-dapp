@@ -154,6 +154,14 @@ pnpm dkg:init --network testnet   # first-time daemon setup only
 pnpm build
 ```
 
+### Vercel preview (`apps/web`)
+
+Set the Vercel project **Root Directory** to `apps/web` (include files outside that directory for the monorepo). [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and runs `pnpm turbo run build --filter=web...`.
+
+`@desci/contracts` package `build` is `tsc` over committed `ts/` ABI files — Foundry is not on Vercel. After Solidity changes, regenerate with `pnpm contracts:build` (Forge) and commit `packages/contracts/ts/`.
+
+Preview env: at least `NEXT_PUBLIC_REOWN_PROJECT_ID`. Add the preview hostname under Allowed Origins in [Reown Cloud](https://dashboard.reown.com).
+
 ---
 
 ## Environment

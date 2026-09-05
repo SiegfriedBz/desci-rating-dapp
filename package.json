@@ -28,7 +28,7 @@
     "grobid:down": "docker compose -f docker-compose.grobid.yml down",
 
     "//── contracts ──": ":",
-    "contracts:build": "pnpm --filter @desci/contracts build",
+    "contracts:build": "pnpm --filter @desci/contracts build:forge",
     "contracts:test": "pnpm --filter @desci/contracts test",
     "contracts:test:vv": "pnpm --filter @desci/contracts test:vv",
     "contracts:test:gas": "pnpm --filter @desci/contracts test:gas",
