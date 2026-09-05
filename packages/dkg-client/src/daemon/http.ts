@@ -43,7 +43,7 @@ export async function daemonRequest<T>(
     response = await fetch(`${baseUrl}${path}`, { ...init, headers });
   } catch {
     throw new Error(
-      'DKG daemon is not reachable. Start it with "pnpm dkg:start" and retry.'
+      'DKG daemon is not reachable. Try again later.'
     );
   }
 
