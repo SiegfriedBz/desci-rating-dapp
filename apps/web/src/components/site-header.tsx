@@ -18,7 +18,7 @@ export function SiteHeader() {
             aria-hidden
             className="inline-block size-2.5 rounded-full bg-primary shadow-[0_0_12px_var(--primary)]"
           />
-          <span className="text-lg font-semibold tracking-tight text-foreground">
+          <span className="font-display text-lg font-medium tracking-[-0.02em] text-foreground">
             VeriSci
           </span>
         </Link>
