@@ -14,6 +14,10 @@ export const env = createEnv({
   client: {
     /** Reown Cloud project id for AppKit (optional — UI degrades without it). */
     NEXT_PUBLIC_REOWN_PROJECT_ID: z.string().min(1).optional(),
+    /** Footer portfolio URL (optional — link omitted when unset). */
+    NEXT_PUBLIC_CONTACT_PORTFOLIO_URL: z.string().url().optional(),
+    /** Footer LinkedIn URL (optional — link omitted when unset). */
+    NEXT_PUBLIC_CONTACT_LINKEDIN_URL: z.string().url().optional(),
   },
   server: {
     // DKG daemon / scripts

@@ -181,6 +181,8 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 | `ALCHEMY_BASE_SEPOLIA_WH_SK` | HMAC secret for `/api/webhooks/alchemy` |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Cloud Inngest only; not needed for local Dev Server |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID` | Reown AppKit (apps/web). Optional — landing builds without it |
+| `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` | Footer portfolio link. Optional |
+| `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | Footer LinkedIn link. Optional |
 
 Never commit `.env`.
 
