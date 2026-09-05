@@ -25,7 +25,7 @@ export function PublishKaButton({
   const [open, setOpen] = useState(false);
   const title = disabled
     ? (disabledReason?.trim() ||
-      "DKG daemon not reachable in this environment.")
+      "DKG connection not available. Please try again later.")
     : undefined;
 
   return (

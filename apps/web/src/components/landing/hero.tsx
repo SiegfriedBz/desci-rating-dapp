@@ -1,5 +1,6 @@
 import { PublishKaButton } from "@/components/publish/publish-ka-button";
 import { Button } from "@/components/ui/button";
+import { DKG_UNAVAILABLE_USER_MESSAGE } from "@/lib/dkg-availability";
 
 type HeroProps = {
   dkgAvailable: boolean;
@@ -8,8 +9,7 @@ type HeroProps = {
 
 export function Hero({ dkgAvailable, dkgUnavailableReason }: HeroProps) {
   const disabledReason =
-    dkgUnavailableReason?.trim() ||
-    "DKG daemon not reachable in this environment.";
+    dkgUnavailableReason?.trim() || DKG_UNAVAILABLE_USER_MESSAGE;
 
   return (
     <section className="relative isolate overflow-hidden border-b border-border">

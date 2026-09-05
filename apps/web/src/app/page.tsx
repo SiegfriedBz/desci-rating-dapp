@@ -39,10 +39,7 @@ export default async function Home() {
             </p>
             <div className="mt-10">
               <Suspense fallback={<KaTableSkeleton />}>
-                <KaCatalog
-                  dkgAvailable={dkg.available}
-                  dkgUnavailableReason={dkg.reason}
-                />
+                <KaCatalog dkgAvailable={dkg.available} />
               </Suspense>
             </div>
           </div>
