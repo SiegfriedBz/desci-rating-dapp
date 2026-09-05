@@ -47,6 +47,9 @@
     "onlyBuiltDependencies": [
       "@origintrail-official/dkg",
       "better-sqlite3"
-    ]
+    ],
+    "overrides": {
+      "@wagmi/connectors": "6.2.0"
+    }
   }
 }

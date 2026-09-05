@@ -51,6 +51,24 @@ const nextConfig: NextConfig = {
     "@desci/agents",
     "@desci/contracts",
   ],
+  // AppKit / wagmi optional Node deps (Reown Next.js skill + Coinbase x402 peers).
+  serverExternalPackages: [
+    "pino-pretty",
+    "lokijs",
+    "encoding",
+    "@coinbase/cdp-sdk",
+  ],
+  // Next 16 defaults to Turbopack; keep webpack externals for `next build --webpack`.
+  turbopack: {},
+  webpack: (config) => {
+    config.externals.push(
+      "pino-pretty",
+      "lokijs",
+      "encoding",
+      "@coinbase/cdp-sdk"
+    );
+    return config;
+  },
 };
 
 export default nextConfig;

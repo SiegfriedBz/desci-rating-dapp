@@ -180,6 +180,7 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 | `ETHERSCAN_API_KEY` | `forge script --verify` |
 | `ALCHEMY_BASE_SEPOLIA_WH_SK` | HMAC secret for `/api/webhooks/alchemy` |
 | `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Cloud Inngest only; not needed for local Dev Server |
+| `NEXT_PUBLIC_REOWN_PROJECT_ID` | Reown AppKit (apps/web). Optional — landing builds without it |
 
 Never commit `.env`.
 
@@ -293,7 +294,9 @@ LLM: LangChain `ChatGoogleGenerativeAI` + Zod structured output. No LangGraph.
 
 ### Dapp — Phase 1 in the browser
 
-**Wallet:** wire Reown AppKit (no wallet dependency exists today). Enforce Base Sepolia (chain id `84532`). Use `ratingControllerAbi` + `getRatingControllerAddress(84532)` from `@desci/contracts`.
+**Shell (`feat/web-shell`):** VeriSci landing + Reown AppKit on Base Sepolia (`NEXT_PUBLIC_REOWN_PROJECT_ID`). Catalog table, PDF upload, and `requestPhase1` UI still later.
+
+**Wallet:** Reown AppKit on Base Sepolia (chain id `84532`). Use `ratingControllerAbi` + `getRatingControllerAddress(84532)` from `@desci/contracts` for later txs.
 
 **PDF upload → Target KA:** an Inngest function that runs `pinPdfToIpfs` → `fetchPdfByCid` → `runPdfToKaAgent` and returns the UAL. GROBID + Gemini + DKG publish can exceed a single HTTP timeout — an Inngest job is safer. The DKG daemon is local in V0; a public deployment requires a remotely reachable node. Open question: where GROBID runs (Docker sidecar, dedicated service, or remote URL).
 

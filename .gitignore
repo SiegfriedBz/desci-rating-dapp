@@ -10,3 +10,9 @@ out-foundry
 .env.local
 .dkg-data
 *.log
+
+# Agent skill installs (local; lockfile optional for team)
+.agents/
+.claude/
+agent/
+skills-lock.json

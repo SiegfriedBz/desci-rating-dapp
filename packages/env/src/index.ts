@@ -10,6 +10,11 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
  * callers use `requireEnv` at the feature boundary.
  */
 export const env = createEnv({
+  clientPrefix: "NEXT_PUBLIC_",
+  client: {
+    /** Reown Cloud project id for AppKit (optional — UI degrades without it). */
+    NEXT_PUBLIC_REOWN_PROJECT_ID: z.string().min(1).optional(),
+  },
   server: {
     // DKG daemon / scripts
     DKG_API_URL: z.string().optional(),
