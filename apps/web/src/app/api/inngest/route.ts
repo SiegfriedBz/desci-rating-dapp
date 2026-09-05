@@ -5,6 +5,7 @@ import {
   phase1FulfilledLogFunction,
   requestCancelledLogFunction,
   oracleUpdatedLogFunction,
+  publishPdfFunction,
 } from "@desci/agents/inngest";
 
 export const { GET, POST, PUT } = serve({
@@ -14,5 +15,6 @@ export const { GET, POST, PUT } = serve({
     phase1FulfilledLogFunction,
     requestCancelledLogFunction,
     oracleUpdatedLogFunction,
+    publishPdfFunction,
   ],
 });

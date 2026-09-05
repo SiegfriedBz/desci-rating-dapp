@@ -3,22 +3,15 @@ import {
   TargetAssetNotIndexedError,
   type TargetAssetBinding,
 } from "@desci/dkg-client";
-import { env, requireEnv } from "@desci/env";
+import { requireDkgContextGraphId } from "@desci/env";
 import {
   formatKaScoreDescription,
   runKaScorerAgent,
 } from "../../../agents/ka-scorer/index.js";
 import { fulfillPhase1OnChain } from "../../evm/fulfill-phase1.js";
-import { inngest } from "../client.js";
+import { InngestEvent, inngest } from "../client.js";
 
 const PHASE_ONE_AUTHOR = "BioProtocol_Phase1_Agent";
-
-function requireContextGraphId(): string {
-  return requireEnv(
-    env.DKG_CONTEXT_GRAPH_ID,
-    "DKG_CONTEXT_GRAPH_ID is required for Phase-1 DKG steps"
-  );
-}
 
 export const phase1RequestedFunction = inngest.createFunction(
   {
@@ -29,10 +22,10 @@ export const phase1RequestedFunction = inngest.createFunction(
       { key: "event.data.requestId", limit: 1 },
     ],
   },
-  { event: "RatingController/phase1.requested" },
+  { event: InngestEvent.Phase1Requested },
   async ({ event, step }) => {
     const { targetUal, requestId, chainId } = event.data;
-    const contextGraphId = requireContextGraphId();
+    const contextGraphId = requireDkgContextGraphId("Phase-1 DKG steps");
 
     const bindings = await step.run("fetch-target-ka", async () => {
       const client = await createDkgClient();

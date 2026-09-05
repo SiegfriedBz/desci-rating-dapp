@@ -1,6 +1,15 @@
 import { EventSchemas, Inngest } from "inngest";
 import { z } from "zod";
 
+/** Canonical Inngest event names — use these instead of raw strings. */
+export enum InngestEvent {
+  Phase1Requested = "RatingController/phase1.requested",
+  Phase1Fulfilled = "RatingController/phase1.fulfilled",
+  RequestCancelled = "RatingController/request.cancelled",
+  OracleUpdated = "RatingController/oracle.updated",
+  PdfSubmitted = "pdf.submitted",
+}
+
 /** Hex string for addresses / bytes32 (validated at runtime). */
 const hexString = z
   .string()
@@ -39,17 +48,24 @@ export const oracleUpdatedSchema = z.object({
   newAgent: hexString,
 });
 
+export const pdfSubmittedSchema = z.object({
+  pdfCid: z.string().min(1),
+  filename: z.string().min(1),
+});
+
 export type Phase1RequestedData = z.infer<typeof phase1RequestedSchema>;
 export type Phase1FulfilledData = z.infer<typeof phase1FulfilledSchema>;
 export type RequestCancelledData = z.infer<typeof requestCancelledSchema>;
 export type OracleUpdatedData = z.infer<typeof oracleUpdatedSchema>;
+export type PdfSubmittedData = z.infer<typeof pdfSubmittedSchema>;
 
 export const inngest = new Inngest({
   id: "desci-rating-dapp",
   schemas: new EventSchemas().fromSchema({
-    "RatingController/phase1.requested": phase1RequestedSchema,
-    "RatingController/phase1.fulfilled": phase1FulfilledSchema,
-    "RatingController/request.cancelled": requestCancelledSchema,
-    "RatingController/oracle.updated": oracleUpdatedSchema,
+    [InngestEvent.Phase1Requested]: phase1RequestedSchema,
+    [InngestEvent.Phase1Fulfilled]: phase1FulfilledSchema,
+    [InngestEvent.RequestCancelled]: requestCancelledSchema,
+    [InngestEvent.OracleUpdated]: oracleUpdatedSchema,
+    [InngestEvent.PdfSubmitted]: pdfSubmittedSchema,
   }),
 });
