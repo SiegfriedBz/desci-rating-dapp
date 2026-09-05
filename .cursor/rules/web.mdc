@@ -1,0 +1,30 @@
+---
+description: Next.js VeriSci web app — App Router, Stitch tokens, AppKit, Base Sepolia
+globs: apps/web/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# apps/web (VeriSci)
+
+## Next.js
+
+- App Router. Prefer Server Components; `"use client"` only for wallet/header and other interactive bits.
+- Next 16 APIs may differ from training data — check `apps/web/node_modules/next/dist/docs/` when unsure.
+- Do **not** edit `apps/web/AGENTS.md` or `CLAUDE.md` (Next regenerates the agent block).
+
+## Design
+
+- Visual source: Google Stitch project **VeriSci DeSci Platform** (`18398957085424516880`).
+- Tokens live in `apps/web/src/app/globals.css` (`:root` + Tailwind v4 `@theme`). No second UI kit (no shadcn/MUI unless explicitly requested).
+- Rebuild Stitch as React + Tailwind. Do not paste exported Stitch HTML as the route.
+
+## Wallet
+
+- Reown AppKit + wagmi. Enforce **Base Sepolia** (`BASE_SEPOLIA_CHAIN_ID` from `@desci/shared`).
+- Shell phase: connect + wrong-network only — no contract txs, no `requestPhase1` / `getRatingByUal` in the UI yet.
+- Project id: `NEXT_PUBLIC_REOWN_PROJECT_ID` from repo-root `.env` via `@desci/env`. Missing key must not break `pnpm build`.
+
+## Scope guard
+
+- Do not add new `app/api/*` routes unless the task is ingest/webhooks.
+- Leave Alchemy (`/api/webhooks/alchemy`) and Inngest (`/api/inngest`) alone unless asked.
