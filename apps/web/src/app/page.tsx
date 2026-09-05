@@ -7,15 +7,21 @@ import { KaTableSkeleton } from "@/components/ka-catalog/ka-table-skeleton";
 import { Roadmap } from "@/components/landing/roadmap";
 import { SiteHeader } from "@/components/header/site-header";
 import Footer from "@/components/footer/footer";
+import { getDkgAvailability } from "@/lib/dkg-availability";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default async function Home() {
+  const dkg = await getDkgAvailability();
+
   return (
     <>
       <SiteHeader />
       <main className="flex flex-1 flex-col">
-        <Hero />
+        <Hero
+          dkgAvailable={dkg.available}
+          dkgUnavailableReason={dkg.reason}
+        />
         <section
           id="catalog"
           className="relative scroll-mt-20 border-t border-border py-16 sm:py-24"
@@ -33,7 +39,10 @@ export default function Home() {
             </p>
             <div className="mt-10">
               <Suspense fallback={<KaTableSkeleton />}>
-                <KaCatalog />
+                <KaCatalog
+                  dkgAvailable={dkg.available}
+                  dkgUnavailableReason={dkg.reason}
+                />
               </Suspense>
             </div>
           </div>
@@ -50,16 +59,19 @@ export default function Home() {
               Two paths on VeriSci
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-7 text-muted">
-              Publish a new Knowledge Asset from a paper, or request a 
+              Publish a new Knowledge Asset from a paper, or request a
               rating on one that already lives on the DKG.
             </p>
           </div>
         </section>
-        <FlowPublishKa />
+        <FlowPublishKa
+          dkgAvailable={dkg.available}
+          dkgUnavailableReason={dkg.reason}
+        />
         <FlowRateKa />
         <Roadmap />
       </main>
-      <Footer/>
+      <Footer />
     </>
   );
 }

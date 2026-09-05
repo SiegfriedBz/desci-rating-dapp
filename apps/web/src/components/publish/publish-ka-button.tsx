@@ -10,6 +10,8 @@ type PublishKaButtonProps = {
   className?: string;
   variant?: "default" | "secondary" | "outline" | "ghost";
   size?: "default" | "sm" | "lg";
+  disabled?: boolean;
+  disabledReason?: string | null;
 };
 
 export function PublishKaButton({
@@ -17,8 +19,14 @@ export function PublishKaButton({
   className,
   variant = "default",
   size = "lg",
+  disabled = false,
+  disabledReason,
 }: PublishKaButtonProps) {
   const [open, setOpen] = useState(false);
+  const title = disabled
+    ? (disabledReason?.trim() ||
+      "DKG daemon not reachable in this environment.")
+    : undefined;
 
   return (
     <>
@@ -26,13 +34,24 @@ export function PublishKaButton({
         type="button"
         variant={variant}
         size={size}
-        className={cn(className)}
-        onClick={() => setOpen(true)}
+        className={cn(className, {
+          "cursor-pointer": !disabled
+        })}
+        disabled={disabled}
+        title={title}
+        aria-disabled={disabled}
+        onClick={() => {
+          if (!disabled) {
+            setOpen(true);
+          }
+        }}
       >
         {label}
         {variant === "default" ? <span aria-hidden>↗</span> : null}
       </Button>
-      <PublishKaModal open={open} onOpenChange={setOpen} />
+      {!disabled ? (
+        <PublishKaModal open={open} onOpenChange={setOpen} />
+      ) : null}
     </>
   );
 }

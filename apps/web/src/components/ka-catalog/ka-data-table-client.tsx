@@ -7,15 +7,23 @@ import { KaDataTable } from "./ka-data-table";
 
 type KaDataTableClientProps = {
   initialData: KaRow[];
+  emptyMessage?: string;
+  /** When false, skip background refetch (DKG offline). */
+  enableRefetch?: boolean;
 };
 
-export function KaDataTableClient({ initialData }: KaDataTableClientProps) {
+export function KaDataTableClient({
+  initialData,
+  emptyMessage,
+  enableRefetch = true,
+}: KaDataTableClientProps) {
   const { data } = useQuery({
     queryKey: KAS_QUERY_KEY,
     queryFn: fetchKasAction,
     initialData,
     staleTime: 60_000,
+    enabled: enableRefetch,
   });
 
-  return <KaDataTable data={data ?? []} />;
+  return <KaDataTable data={data ?? []} emptyMessage={emptyMessage} />;
 }
