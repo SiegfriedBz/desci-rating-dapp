@@ -10,6 +10,9 @@ export type KaRow = {
   subjectUri: string | null;
   title: string | null;
   /** R-KA UAL when rated. */
-  ratingSubject: string | null;
+  rKaUal: string | null;
   ratingValue: number | null;
 };
+
+/** Shared TanStack Query key for the landing KA catalog. */
+export const KAS_QUERY_KEY = ["kas"] as const;
