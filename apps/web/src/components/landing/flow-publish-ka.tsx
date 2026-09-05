@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PublishKaButton } from "@/components/publish/publish-ka-button";
 
 export function FlowPublishKa() {
   return (
@@ -29,9 +30,17 @@ export function FlowPublishKa() {
                 IPFS.
               </p>
             </div>
-            <p className="mt-10 font-mono text-xs text-accent/80">
-              PDF → IPFS → RDF → KA → UAL
-            </p>
+            <div className="mt-10 flex flex-col gap-4">
+              <p className="font-mono text-xs text-accent/80">
+                PDF → IPFS → RDF → KA → UAL
+              </p>
+              <PublishKaButton
+                label="Try it now →"
+                variant="secondary"
+                size="default"
+                className="w-fit"
+              />
+            </div>
           </div>
           <div className="p-7 sm:p-10">
             <div className="mb-7 flex items-center justify-between gap-4">

@@ -1,7 +1,7 @@
 import { getKas } from "@/lib/queries/kas";
-import { KaDataTable } from "./ka-data-table";
+import { KaDataTableClient } from "./ka-data-table-client";
 
 export async function KaCatalog() {
-  const kas = await getKas();
-  return <KaDataTable data={kas} />;
+  const initialData = await getKas();
+  return <KaDataTableClient initialData={initialData} />;
 }

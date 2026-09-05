@@ -1,3 +1,5 @@
+import { PublishKaButton } from "@/components/publish/publish-ka-button";
+
 export function Hero() {
   return (
     <section className="relative isolate overflow-hidden border-b border-border">
@@ -31,13 +33,7 @@ export function Hero() {
           changing the original work.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3 sm:mt-9">
-          <a
-            href="#publish-ka"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-[0_12px_40px_rgba(45,212,191,0.18)] transition hover:brightness-110"
-          >
-            Publish KA
-            <span aria-hidden>↗</span>
-          </a>
+          <PublishKaButton label="Publish KA" />
           <a
             href="#rate-ka"
             className="inline-flex h-12 items-center justify-center rounded-full border border-border bg-surface/70 px-6 text-sm font-semibold text-foreground backdrop-blur transition hover:border-accent/50 hover:bg-surface-elevated"
