@@ -67,15 +67,25 @@ export function Roadmap() {
           ))}
         </ol>
         <p className="mt-8 max-w-2xl text-sm leading-6 text-muted">
-          Tokenomics are not in this version. <code className="font-mono text-[0.8rem] text-foreground/80">requestPhase1</code>{" "}
-          — and later <code className="font-mono text-[0.8rem] text-foreground/80">requestPhase2</code> /{" "}
-          <code className="font-mono text-[0.8rem] text-foreground/80">requestPhase3</code> — take no ETH or TRAC
-          from the caller. The oracle wallet still sponsors publishing the R-KA.
-          A paid request model may come later.
+          Rating requests are free in this version. Calling{" "}
+          <code className="font-mono text-[0.8rem] text-foreground/80">
+            requestPhase1
+          </code>
+          — and later{" "}
+          <code className="font-mono text-[0.8rem] text-foreground/80">
+            requestPhase2
+          </code>{" "}
+          /{" "}
+          <code className="font-mono text-[0.8rem] text-foreground/80">
+            requestPhase3
+          </code>{" "}
+          — costs the caller no ETH or TRAC. The oracle wallet still pays to
+          publish the Rating KA. A paid request model may come later.
         </p>
-        <p className="mt-4 font-mono text-xs text-muted">
-          One R-KA per target · updated in place after Phase 1 · composite
-          weights not yet set
+        <p className="mt-4 max-w-2xl text-sm leading-6 text-muted">
+          Each target Knowledge Asset gets one Rating KA. After Phase 1, later
+          phases update that same asset in place. How phase scores combine into
+          a single global rating is still being designed.
         </p>
       </div>
     </section>
