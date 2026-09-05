@@ -156,7 +156,9 @@ pnpm build
 
 ### Vercel preview (`apps/web`)
 
-Set the Vercel project **Root Directory** to `apps/web` (include files outside that directory for the monorepo). [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and runs `pnpm turbo run build --filter=web...`.
+Set the Vercel project **Root Directory** to `apps/web` (include files outside that directory for the monorepo). Framework Preset = **Next.js**. Leave **Output Directory** empty (do not set `public`). [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and runs `pnpm turbo run build --filter=web` (dependencies via Turbo `^build`).
+
+If a Preview URL returns Vercel `404 NOT_FOUND` while the deployment is Ready: confirm Framework = Next.js and Output Directory is blank, then Redeploy without cache. Check the deployment **Output** tab for Next routes (`/`, `/_next/...`).
 
 `@desci/contracts` package `build` is `tsc` over committed `ts/` ABI files — Foundry is not on Vercel. After Solidity changes, regenerate with `pnpm contracts:build` (Forge) and commit `packages/contracts/ts/`.
 
