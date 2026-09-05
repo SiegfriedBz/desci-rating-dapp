@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "@desci/env": "workspace:*",
-    "@desci/shared": "workspace:*"
+    "@desci/shared": "workspace:*",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",

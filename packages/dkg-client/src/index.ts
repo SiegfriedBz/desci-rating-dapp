@@ -7,6 +7,7 @@ export type {
   PublicationResourceKind,
   PublicationSection,
   PublicationSectionKind,
+  PublicationWithRatingBinding,
   PublishAssertionDeps,
   PublishPublicationParams,
   PublishPublicationResult,
@@ -15,6 +16,7 @@ export type {
 } from "./schema/index.js";
 
 export {
+  publicationWithRatingBindingSchema,
   DEO_DATASET_DESCRIPTION,
   DEO_MATERIALS,
   DEO_METHODS,
@@ -45,6 +47,7 @@ export {
   buildPublicationGraph,
   pdfIpfsUrlFromBindings,
   publishPublicationKa,
+  queryPublicationsWithRatings,
 } from "./publication-ka/index.js";
 
 export {

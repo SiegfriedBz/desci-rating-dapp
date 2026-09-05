@@ -1,5 +1,8 @@
 import type { KnowledgeAssetQuad, SparqlBindings } from "@desci/shared";
 import type { TargetAssetBinding } from "../schema/types.js";
+import type { SparqlQueryOptions } from "./api/query.js";
+
+export type { SparqlQueryOptions };
 
 export type DaemonConnectConfig = {
   apiUrl?: string;
@@ -29,6 +32,7 @@ export type DaemonClient = {
   ) => Promise<TargetAssetBinding[]>;
   query: (
     sparql: string,
-    contextGraphId: string
+    contextGraphId: string,
+    options?: SparqlQueryOptions
   ) => Promise<{ bindings: SparqlBindings }>;
 };

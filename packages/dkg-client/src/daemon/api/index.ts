@@ -4,4 +4,4 @@ export {
   publishAssertion,
   readPublishedUal,
 } from "./assets.js";
-export { queryDaemon } from "./query.js";
+export { queryDaemon, type SparqlQueryOptions } from "./query.js";
