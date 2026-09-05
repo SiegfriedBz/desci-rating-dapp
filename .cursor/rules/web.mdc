@@ -14,7 +14,7 @@ alwaysApply: false
 
 ## Design
 
-- Visual source: Google Stitch project **VeriSci DeSci Platform** (`18398957085424516880`).
+- Visual source: Google Stitch project **VeriSci DeSci Platform** (`18398957085424516880`), reachable through the `stitch` MCP server in `.cursor/mcp.json` (needs `STITCH_API_KEY` exported in the shell that launches Cursor).
 - Tokens live in `apps/web/src/app/globals.css` (`:root` + Tailwind v4 `@theme`). No second UI kit (no shadcn/MUI unless explicitly requested).
 - Rebuild Stitch as React + Tailwind. Do not paste exported Stitch HTML as the route.
 
