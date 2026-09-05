@@ -10,7 +10,11 @@ import {
 
 export type SparqlQueryFn = (
   sparql: string,
-  contextGraphId: string
+  contextGraphId: string,
+  options?: {
+    graphSuffix?: string;
+    view?: "working-memory" | "shared-working-memory" | "verifiable-memory";
+  }
 ) => Promise<{ bindings: SparqlBindings }>;
 
 /** SPARQL Action B: ratings that schema:about a target UAL. */

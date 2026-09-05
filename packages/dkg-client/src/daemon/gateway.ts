@@ -72,7 +72,7 @@ export async function connectDaemon(
       readPublishedUal(baseUrl, token, contextGraphId, name),
     getAssetQuadsByUal: (targetUal, contextGraphId) =>
       getAssetQuadsByUal(baseUrl, token, targetUal, contextGraphId),
-    query: (sparql, contextGraphId) =>
-      queryDaemon(baseUrl, token, sparql, contextGraphId),
+    query: (sparql, contextGraphId, options) =>
+      queryDaemon(baseUrl, token, sparql, contextGraphId, options),
   };
 }

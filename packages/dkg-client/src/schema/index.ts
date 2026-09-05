@@ -27,6 +27,10 @@ export {
   SCHEMA_TEXT,
 } from "./vocab.js";
 
+export {
+  publicationWithRatingBindingSchema,
+} from "./types.js";
+
 export type {
   PublicationAuthor,
   PublicationMetadata,
@@ -34,6 +38,7 @@ export type {
   PublicationResourceKind,
   PublicationSection,
   PublicationSectionKind,
+  PublicationWithRatingBinding,
   PublishAssertionDeps,
   PublishPublicationParams,
   PublishPublicationResult,

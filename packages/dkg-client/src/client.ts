@@ -9,6 +9,7 @@ import {
   SparqlBindings,
 } from "@desci/shared";
 import { connectDaemon } from "./daemon/index.js";
+import type { SparqlQueryOptions } from "./daemon/types.js";
 import { TargetAssetNotIndexedError } from "./errors.js";
 import { publishPublicationKa } from "./publication-ka/index.js";
 import type {
@@ -70,9 +71,10 @@ export async function createDkgClient(config: DkgConfig = {}) {
     },
     query: async (
       sparql: string,
-      contextGraphId: string
+      contextGraphId: string,
+      options?: SparqlQueryOptions
     ): Promise<{ bindings: SparqlBindings }> => {
-      return daemon.query(sparql, contextGraphId);
+      return daemon.query(sparql, contextGraphId, options);
     },
     /**
      * Load the Knowledge Asset assertion for a published UAL.

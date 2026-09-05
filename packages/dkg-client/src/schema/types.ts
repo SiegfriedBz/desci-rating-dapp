@@ -1,11 +1,16 @@
 import type { KnowledgeAssetQuad } from "@desci/shared";
+import { z } from "zod";
 
+// TODO: migrate TargetAssetBinding to a Zod schema
+//       (see publicationWithRatingBindingSchema for the pattern — separate chore)
 export type TargetAssetBinding = {
   subject: string;
   predicate: string;
   object: string;
 };
 
+// TODO: migrate RatingBinding to a Zod schema
+//       (see publicationWithRatingBindingSchema for the pattern — separate chore)
 export type RatingBinding = {
   ratingSubject: string;
   ratingValue: string;
@@ -13,6 +18,34 @@ export type RatingBinding = {
   /** schema:description when present (older R-KAs may omit it). */
   description: string | null;
 };
+
+/**
+ * Plain type (not `z.infer`) so consumers resolve it without needing `zod`
+ * on their own module graph (pnpm isolation + IDE language service).
+ */
+export type PublicationWithRatingBinding = {
+  /** On-chain Knowledge Asset UAL (`did:dkg:…`). */
+  pub: string;
+  /** RDF assertion subject (often a DOI IRI); null if unknown. */
+  subjectUri: string | null;
+  title: string | null;
+  /** R-KA UAL when a rating exists; null otherwise. */
+  ratingSubject: string | null;
+  ratingValue: string | null;
+};
+
+/**
+ * Zod here because SPARQL rows come from the DKG daemon (external process).
+ * A plain cast fails silently if the daemon changes its response shape.
+ */
+export const publicationWithRatingBindingSchema: z.ZodType<PublicationWithRatingBinding> =
+  z.object({
+    pub: z.string(),
+    subjectUri: z.string().nullable(),
+    title: z.string().nullable(),
+    ratingSubject: z.string().nullable(),
+    ratingValue: z.string().nullable(),
+  });
 
 export type PublicationAuthor = {
   name: string;
