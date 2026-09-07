@@ -73,8 +73,11 @@ export async function processRatingControllerEvent(
         targetUal: asString(decoded.args["targetUal"], "targetUal"),
         requester: asHex(decoded.args["requester"], "requester"),
       };
+      // Include transactionHash so re-requests on the same UAL (after
+      // cancelPendingRequest) produce a distinct event id and are not
+      // silently deduplicated by Inngest's 24h idempotency window.
       await inngest.send({
-        id: `${requestId}-phase1`,
+        id: `${requestId}-phase1-${transactionHash}-${logIndex}`,
         name: InngestEvent.Phase1Requested,
         data,
       });
