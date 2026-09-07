@@ -1,15 +1,10 @@
 import type { ReactNode } from "react";
 import { PublishKaButton } from "@/components/publish/publish-ka-button";
+import { getDkgAvailability } from "@/lib/dkg-availability";
 
-type FlowPublishKaProps = {
-  dkgAvailable: boolean;
-  dkgUnavailableReason?: string | null;
-};
+export async function FlowPublishKa() {
+  const dkg = await getDkgAvailability();
 
-export function FlowPublishKa({
-  dkgAvailable,
-  dkgUnavailableReason,
-}: FlowPublishKaProps) {
   return (
     <section
       id="publish-ka"
@@ -47,8 +42,8 @@ export function FlowPublishKa({
                 variant="secondary"
                 size="default"
                 className="w-fit"
-                disabled={!dkgAvailable}
-                disabledReason={dkgUnavailableReason}
+                disabled={!dkg.available}
+                disabledReason={dkg.reason}
               />
             </div>
           </div>

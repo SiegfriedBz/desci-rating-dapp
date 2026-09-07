@@ -1,15 +1,14 @@
 import { PublishKaButton } from "@/components/publish/publish-ka-button";
 import { Button } from "@/components/ui/button";
-import { DKG_UNAVAILABLE_USER_MESSAGE } from "@/lib/dkg-availability";
+import {
+  DKG_UNAVAILABLE_USER_MESSAGE,
+  getDkgAvailability,
+} from "@/lib/dkg-availability";
 
-type HeroProps = {
-  dkgAvailable: boolean;
-  dkgUnavailableReason?: string | null;
-};
-
-export function Hero({ dkgAvailable, dkgUnavailableReason }: HeroProps) {
+export async function Hero() {
+  const dkg = await getDkgAvailability();
   const disabledReason =
-    dkgUnavailableReason?.trim() || DKG_UNAVAILABLE_USER_MESSAGE;
+    dkg.reason?.trim() || DKG_UNAVAILABLE_USER_MESSAGE;
 
   return (
     <section className="relative isolate overflow-hidden border-b border-border">
@@ -45,12 +44,12 @@ export function Hero({ dkgAvailable, dkgUnavailableReason }: HeroProps) {
         <div className="mt-7 flex flex-wrap justify-center gap-3 sm:mt-9">
           <PublishKaButton
             label="Publish KA"
-            disabled={!dkgAvailable}
+            disabled={!dkg.available}
             disabledReason={disabledReason}
           />
-          {dkgAvailable ? (
+          {dkg.available ? (
             <a
-              href="#rate-ka"
+              href="/rate-ka"
               className="inline-flex h-12 items-center justify-center rounded-full border border-border bg-surface/70 px-6 text-sm font-semibold text-foreground backdrop-blur transition hover:border-accent/50 hover:bg-surface-elevated"
             >
               Rate existing KA

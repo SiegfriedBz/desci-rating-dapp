@@ -1,16 +1,17 @@
-import { getKas, type KaRow } from "@/lib/queries/kas";
-import { DKG_CATALOG_UNAVAILABLE_MESSAGE } from "@/lib/dkg-availability";
+import {
+  DKG_CATALOG_UNAVAILABLE_MESSAGE,
+  getDkgAvailability,
+} from "@/lib/dkg-availability";
+import { getKas } from "@/lib/queries/dkg/kas";
+import type { KaRow } from "@/lib/queries/kas-types";
 import { KaDataTableClient } from "./ka-data-table-client";
 
-type KaCatalogProps = {
-  dkgAvailable: boolean;
-};
-
-export async function KaCatalog({ dkgAvailable }: KaCatalogProps) {
+export async function KaCatalog() {
+  const dkg = await getDkgAvailability();
   let initialData: KaRow[] = [];
-  let unavailable = !dkgAvailable;
+  let unavailable = !dkg.available;
 
-  if (dkgAvailable) {
+  if (dkg.available) {
     try {
       initialData = await getKas();
     } catch {
