@@ -24,7 +24,7 @@ Package scripts: `pnpm --filter @desci/agents build` (`tsc` → `dist/`) and `cl
 - **Agents** live under `src/agents/<name>/` with an `agent.ts` exporting `runXxxAgent`.
 - **IPFS** is a sibling module (`@desci/agents/ipfs`). Callers pin (or later fetch) outside the agent, then pass `{ pdf, pdfCid }` into `runPdfToKaAgent`.
 - **LLM**: LangChain `ChatGoogleGenerativeAI` + Zod structured output (`src/shared/llm/gemini.ts`). No LangGraph.
-- **Durable jobs**: Inngest under `src/integrations/` (Phase-1 RatingController only for now).
+- **Durable jobs**: Inngest under `src/integrations/` (Phase-1 RatingController + PDF→KA publish).
 
 Depends on `@desci/dkg-client` for daemon publish/query. Gemini: `GOOGLE_API_KEY` or `GEMINI_API_KEY`; optional `GEMINI_MODEL` (default `gemini-3.5-flash-lite`). Pin: `PINATA_JWT`. Fetch: `IPFS_GATEWAY_URL` (e.g. Pinata gateway). The KA stores `ipfs://…` on `schema:encoding` / `schema:contentUrl`.
 
@@ -65,17 +65,26 @@ See [src/ipfs/README.md](src/ipfs/README.md). Shared storage: `pinPdfToIpfs`, `f
 
 `gemini.ts` — `createStructuredGeminiModel`, `requireGeminiApiKey`, `resolveGeminiModel`.
 
+### `src/integrations/`
+
+See [src/integrations/README.md](src/integrations/README.md). External adapters (EVM + Inngest), not agents.
+
 ### `src/integrations/inngest/`
 
-App id `desci-rating-dapp`. Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `oracle.updated`.
+See [src/integrations/inngest/README.md](src/integrations/inngest/README.md). App id `desci-rating-dapp`.
+
+Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `oracle.updated`, plus `pdf.submitted`.
 
 - `adapters/rating-controller-event.ts` — decoded log → Inngest events
-- `functions/phase1-requested.ts` — fetch KA → `runKaScorerAgent` → mint R-KA (`schema:description`) → `fulfillPhase1OnChain`
+- `functions/phase1-requested.ts` — fetch KA → `runKaScorerAgent` → mint R-KA → `fulfillPhase1OnChain`
+- `functions/publish-pdf.ts` — `fetchPdfByCid` → `runPdfToKaAgent`
 - `functions/log-contract-event.ts` — log-only handlers
 
 Repo-root `pnpm inngest:dev` → `http://localhost:3000/api/inngest`.
 
 ### `src/integrations/evm/`
+
+See [src/integrations/evm/README.md](src/integrations/evm/README.md).
 
 `fulfillPhase1OnChain` — Viem wallet on Base Sepolia. Requires `ORACLE_AGENT_PRIVATE_KEY`, `BASE_SEPOLIA_RPC_URL`.
 

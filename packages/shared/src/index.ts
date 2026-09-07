@@ -4,6 +4,19 @@ export const BASE_SEPOLIA_CHAIN_ID = 84532;
 export const DEFAULT_ORIGINTRAIL_DKG_HUB_CONTRACT_ADDRESS_BASE_SEPOLIA =
   "0xC056e67Da4F51377Ad1B01f50F655fFdcCD809F6";
 
+/**
+ * On-chain RatingController.Phase enum values (ABI returns uint8).
+ * Prefer `as const` over TS enum: no double-mapping, tree-shakeable.
+ */
+export const RATING_PHASE = {
+  Unrated: 0,
+  Phase1Completed: 1,
+  Phase2Completed: 2,
+  Phase3Completed: 3,
+} as const;
+
+export type RatingPhase = (typeof RATING_PHASE)[keyof typeof RATING_PHASE];
+
 export type DkgConfig = {
   /** Override daemon base URL, e.g. http://127.0.0.1:9200 */
   apiUrl?: string;
