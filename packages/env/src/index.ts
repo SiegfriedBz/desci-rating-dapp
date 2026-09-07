@@ -70,6 +70,15 @@ export const env = createEnv({
     INNGEST_SIGNING_KEY: z.string().optional(),
     /** Override Inngest REST API base (dev server or cloud). */
     INNGEST_API_BASE_URL: z.string().url().optional(),
+
+    /**
+     * Dev-only: skip the DKG `publishAssertion` write in the `mint-r-ka` step
+     * and substitute a synthetic R-KA UAL.
+     * Lets you test the full requestPhase1 → oracle → fulfillPhase1 flow
+     * without needing a healthy DKG write quorum.
+     * Set to `"true"` in `.env`; never enable in production.
+     */
+    DEV_SKIP_DKG_MINT: z.string().optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

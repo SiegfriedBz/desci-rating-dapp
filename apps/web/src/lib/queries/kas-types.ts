@@ -14,5 +14,8 @@ export type KaRow = {
   ratingValue: number | null;
 };
 
+/** Hard cap for the landing-page catalog preview (no pager on `/`). */
+export const LANDING_KA_CATALOG_LIMIT = 12;
+
 /** Shared TanStack Query key for the landing KA catalog. */
 export const KAS_QUERY_KEY = ["kas"] as const;

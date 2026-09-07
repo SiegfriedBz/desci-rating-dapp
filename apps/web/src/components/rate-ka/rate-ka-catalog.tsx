@@ -2,18 +2,18 @@ import {
   DKG_CATALOG_UNAVAILABLE_MESSAGE,
   getDkgAvailability,
 } from "@/lib/dkg-availability";
-import { getKas } from "@/lib/queries/dkg/kas";
-import type { KaRow } from "@/lib/queries/kas-types";
-import { KaDataTableClient } from "./ka-data-table-client";
+import { getUnratedKas } from "@/lib/queries/contract/ratings";
+import type { UnratedKaRow } from "@/lib/queries/contract/ratings-types";
+import { RateKaTableClient } from "./rate-ka-table-client";
 
-export async function KaCatalog() {
+export async function RateKaCatalog() {
   const dkg = await getDkgAvailability();
-  let initialData: KaRow[] = [];
+  let initialData: UnratedKaRow[] = [];
   let unavailable = !dkg.available;
 
   if (dkg.available) {
     try {
-      initialData = await getKas();
+      initialData = await getUnratedKas();
     } catch {
       unavailable = true;
     }
@@ -29,12 +29,12 @@ export async function KaCatalog() {
           {DKG_CATALOG_UNAVAILABLE_MESSAGE}
         </p>
       ) : null}
-      <KaDataTableClient
+      <RateKaTableClient
         initialData={initialData}
         emptyMessage={
           unavailable
             ? "No publications to show while DKG is offline."
-            : undefined
+            : "No unrated Knowledge Assets in the catalog. Paste a UAL below if you have one."
         }
         enableRefetch={!unavailable}
       />

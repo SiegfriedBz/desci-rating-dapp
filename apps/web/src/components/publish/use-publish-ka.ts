@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getPublishStatus, uploadAndPin } from "@/app/actions/publish";
+import { uploadAndPin } from "@/lib/commands/dkg/publish-ka";
+import { getPublishStatus } from "@/lib/queries/dkg/publish-status";
 import { KAS_QUERY_KEY } from "@/lib/queries/kas-types";
 import {
   isBusyPhase,
