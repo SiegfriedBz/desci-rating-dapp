@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
+import Footer from "@/components/footer/footer";
+import { SiteHeader } from "@/components/header/site-header";
 import { AppKitProvider } from "@/providers/appkit-provider";
 import "./globals.css";
 
@@ -48,7 +50,11 @@ export default async function RootLayout({
       className={`${bodyFont.variable} ${headingFont.variable} ${codeFont.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <AppKitProvider cookies={cookies}>{children}</AppKitProvider>
+        <AppKitProvider cookies={cookies}>
+          <SiteHeader />
+          {children}
+          <Footer />
+        </AppKitProvider>
       </body>
     </html>
   );
