@@ -75,10 +75,12 @@ See [src/integrations/inngest/README.md](src/integrations/inngest/README.md). Ap
 
 Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `oracle.updated`, plus `pdf.submitted`.
 
-- `adapters/rating-controller-event.ts` — decoded log → Inngest events
+- `adapters/rating-controller-event.ts` — decoded log → Inngest events (idempotency keys per log)
 - `functions/phase1-requested.ts` — fetch KA → `runKaScorerAgent` → mint R-KA → `fulfillPhase1OnChain`
 - `functions/publish-pdf.ts` — `fetchPdfByCid` → `runPdfToKaAgent`
-- `functions/log-contract-event.ts` — log-only handlers
+- `functions/log-contract-event.ts` — log-only handlers (`phase1-fulfilled-log`, `request-cancelled-log`, `oracle-updated-log`)
+
+Dev-only: `DEV_SKIP_DKG_MINT="true"` skips the DKG R-KA write and returns a synthetic UAL so `fulfillPhase1` can still complete. Never enable it outside development.
 
 Repo-root `pnpm inngest:dev` → `http://localhost:3000/api/inngest`.
 
@@ -97,6 +99,6 @@ pnpm dkg:publish-pdf ./paper.pdf
 # or DKG_PDF_PATH=...
 ```
 
-Requires `PINATA_JWT`. Optional `DKG_CONTEXT_GRAPH_ID` (default `desci-sample`), `DKG_KA_NAME`. Sample PDF: `fixtures/asx-pub.pdf`.
+Requires `PINATA_JWT`. Optional `DKG_CONTEXT_GRAPH_ID` (default `verisci`, from `DEFAULT_DKG_CONTEXT_GRAPH_ID` in `@desci/env`), `DKG_KA_NAME`. Sample PDF: `fixtures/asx-pub.pdf`.
 
 GROBID sidecar: repo-root `pnpm grobid:up` / `grobid:down` (`docker-compose.grobid.yml`, CPU-only `grobid/grobid:0.8.2-crf`). Ready when `curl -s http://127.0.0.1:8070/api/isalive` returns `true`.
