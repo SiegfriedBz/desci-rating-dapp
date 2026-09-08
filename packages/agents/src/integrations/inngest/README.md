@@ -16,13 +16,23 @@ Import via `@desci/agents/inngest`. Functions are registered in `apps/web/src/ap
 
 ## Functions
 
-| Export | `id` | Behavior |
-| --- | --- | --- |
-| `phase1RequestedFunction` | `phase1-requested` | fetch target KA → `runKaScorerAgent` → mint R-KA → `fulfillPhase1OnChain` |
-| `publishPdfFunction` | `publish-pdf` | `fetchPdfByCid` → `runPdfToKaAgent` → `{ ual, pdfCid }` |
-| `phase1FulfilledLogFunction` | (log) | log-only |
-| `requestCancelledLogFunction` | (log) | log-only |
-| `oracleUpdatedLogFunction` | (log) | log-only |
+| Export | `id` | Config | Behavior |
+| --- | --- | --- | --- |
+| `phase1RequestedFunction` | `phase1-requested` | `retries: 3`, concurrency 5 global + 1 per `event.data.requestId` | fetch target KA → `runKaScorerAgent` → mint R-KA → `fulfillPhase1OnChain` |
+| `publishPdfFunction` | `publish-pdf` | `retries: 2`, `timeouts.finish: "10m"` | `fetchPdfByCid` → `runPdfToKaAgent` → `{ ual, pdfCid }` |
+| `phase1FulfilledLogFunction` | `phase1-fulfilled-log` | `retries: 2` | log-only |
+| `requestCancelledLogFunction` | `request-cancelled-log` | `retries: 2` | log-only |
+| `oracleUpdatedLogFunction` | `oracle-updated-log` | `retries: 2` | log-only |
+
+`phase1-requested` steps: `fetch-target-ka` → `run-ka-scorer-agent` → `mint-r-ka` → `fulfill-on-chain`. It rethrows `TargetAssetNotIndexedError` so Inngest retries through DKG indexing lag, and `fulfillPhase1OnChain` returns `already_fulfilled` without a tx when the record is already `Phase1Completed`.
+
+`publish-pdf` steps: `fetch-pdf` (bytes returned base64-encoded so they survive Inngest's JSON step boundary) → `run-pdf-to-ka-agent`.
+
+Both DKG functions resolve the context graph through `requireDkgContextGraphId`, so `DKG_CONTEXT_GRAPH_ID` must be set.
+
+## Dev-only flag
+
+`DEV_SKIP_DKG_MINT="true"` makes `mint-r-ka` skip `publishRating` (which needs a 3-peer DKG write quorum) and return a synthetic UAL — `did:dkg:base:84532/dev-skip-dkg/{requestId slice}` — so scoring and the on-chain fulfill still run end to end. Development only; there is no guard against enabling it elsewhere.
 
 ## Layout
 
