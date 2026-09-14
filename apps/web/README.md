@@ -10,7 +10,7 @@ pnpm --filter web build
 pnpm --filter web lint
 ```
 
-> This app only works with the local stack running: DKG daemon (`pnpm dkg:start`), GROBID (`pnpm grobid:up`), and the Inngest Dev Server (`pnpm inngest:dev`). See the [root README](../../README.md) for what a hosted deploy is still missing.
+> The app is deployed on Vercel against a hosted DKG node, GROBID, and Inngest Cloud. For **local** development it needs the local stack running: DKG daemon (`pnpm dkg:start`), GROBID (`pnpm grobid:up`), and the Inngest Dev Server (`pnpm inngest:dev`). See the [root README](../../README.md#local-development).
 
 ## Routes
 
@@ -59,7 +59,7 @@ components/
 
 Reown AppKit + wagmi, Base Sepolia only (`networks = [baseSepolia]`, `expectedChainId = BASE_SEPOLIA_CHAIN_ID`).
 
-`NEXT_PUBLIC_REOWN_PROJECT_ID` is **optional**: without it `wagmiAdapter` is `null`, `createAppKit` is skipped, and `AppKitProvider` renders children under a bare `QueryClientProvider` so the app still builds and renders — only wallet connect is unavailable. `metadata.url` in `src/lib/wagmi.ts` is currently `http://localhost:3000` and must be changed to the real origin before any deploy.
+`NEXT_PUBLIC_REOWN_PROJECT_ID` is **optional**: without it `wagmiAdapter` is `null`, `createAppKit` is skipped, and `AppKitProvider` renders children under a bare `QueryClientProvider` so the app still builds and renders — only wallet connect is unavailable. `metadata.url` in `src/lib/wagmi.ts` reads `NEXT_PUBLIC_APP_URL` and falls back to `http://localhost:3000`, so set that variable to the deployed origin — and add the same origin to Allowed Origins in Reown Cloud.
 
 ## Config
 
@@ -72,4 +72,4 @@ Reown AppKit + wagmi, Base Sepolia only (`networks = [baseSepolia]`, `expectedCh
 
 Styling is Tailwind CSS v4 via `@tailwindcss/postcss`, with theme tokens in `src/app/globals.css`. Fonts are `next/font/google`: Inter (body), Space Grotesk (headings), JetBrains Mono (code).
 
-`vercel.json` installs from the repo root and builds with `pnpm turbo run build --filter=web`. See the Vercel notes in the [root README](../../README.md#vercel-notes-preview-builds-only) — a preview is a UI check only, since the catalog, publish flow, and oracle all need the local daemon.
+`vercel.json` installs from the repo root and builds with `pnpm turbo run build --filter=web`. See the [Vercel notes in the root README](../../README.md#production-setup) for the project settings and the required production environment.
