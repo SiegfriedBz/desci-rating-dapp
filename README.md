@@ -1,49 +1,101 @@
 # desci-rating-dapp (VeriSci)
 
-A pipeline to mint **Rating Knowledge Assets (R-KAs)** for scientific publications on OriginTrail DKG V10.
+Quality signals for scientific Knowledge Assets on **OriginTrail DKG V10**, anchored on **Base Sepolia**.
 
-Publications are minted as **Target Knowledge Assets (KAs)** via a local DKG daemon. A rating is a **separate** R-KA linked to the target KA via `schema:about` — the original KA is never touched. On-chain, `RatingController` is a request/fulfill state machine: anyone may request, only the oracle agent may fulfill.
+Publications are minted as **Target Knowledge Assets (KAs)**. A rating is a **separate** Rating Knowledge Asset (R-KA) linked to the target via `schema:about` — the original KA is never modified. On-chain, `RatingController` is a request/fulfill state machine: anyone may request a rating, only the oracle agent may fulfill it.
 
-> **Status: local development only. This is not deployed and not production-ready.**
-> Both product flows depend on services that only exist on the developer's machine — a DKG daemon on `127.0.0.1:9200`, a GROBID container on `127.0.0.1:8070`, and the Inngest Dev Server on `localhost:8288`. Alchemy webhooks reach the app through an ad-hoc tunnel. See [Why it is not production-ready](#why-it-is-not-production-ready).
-
-**What works today (locally):** the VeriSci Next.js app (landing, KA catalog, PDF → KA publish modal, `/rate-ka` with wallet-signed `requestPhase1`), the publication ingest CLI, R-KA mint, `RatingController` Phase 1 deployed on Base Sepolia, and the Alchemy webhook → Inngest oracle worker.
-
-**What does not exist yet:** Phase 2 (human review), Phase 3 (wet-lab), and any hosted deployment.
+> **Status: deployed and running on Base Sepolia testnet.** Both product flows — Publish KA and Rate KA — have been verified end to end in production. See [Live deployment](#live-deployment).
 
 ---
 
 ## The problem
 
-OriginTrail DKG uses a **Dual Engine** architecture: every Knowledge Asset has two complementary representations — its RDF assertion triples are stored off-chain across the DKG peer network (queryable via SPARQL), while a corresponding NFT is minted on-chain (here, Base Sepolia) to anchor ownership and provenance with cryptographic proofs. The on-chain NFT does not contain the data; it is a pointer. This gives KAs cryptographic guarantees and semantic queryability, but no quality signal. Agents traversing the graph to build hypotheses have no way to weight source reliability.
+OriginTrail DKG uses a **Dual Engine** architecture. Every Knowledge Asset has two complementary representations: its RDF assertion triples are stored off-chain across the DKG peer network (queryable via SPARQL), while a corresponding NFT is minted on-chain to anchor ownership and provenance with cryptographic proofs. The on-chain NFT does not contain the data — it is a pointer.
 
-This repo builds the infrastructure to attach a rating to any KA without modifying it: an independent Rating KA minted using the same Dual Engine architecture (RDF triples off-chain on the DKG network, NFT pointer on-chain), linked to the target via `schema:about` and evolving across three phases (machine score → human review → wet-lab).
+This gives KAs cryptographic guarantees and semantic queryability, but **no quality signal**. Agents traversing the graph to build hypotheses have no way to weight source reliability.
+
+This repo attaches a rating to any KA without modifying it: an independent Rating KA minted with the same Dual Engine architecture, linked to the target via `schema:about`, designed to evolve across three phases (machine score → human review → wet-lab).
 
 ---
 
-## Current state
+## Live deployment
 
-| Component | Status |
+| Resource | Value |
 |---|---|
-| DKG V10 daemon HTTP client (`@desci/dkg-client`) | ✅ |
-| PDF → GROBID → Gemini → Target KA (CLI + Inngest job) | ✅ |
-| R-KA mint + SPARQL query ratings by UAL | ✅ |
-| `RatingController` Phase 1 on Base Sepolia | ✅ Deployed |
-| Alchemy webhook → Inngest → score → R-KA → `fulfillPhase1` | ✅ (needs a public tunnel for Alchemy) |
-| Next.js dapp: landing, KA catalog, PDF upload, wallet `requestPhase1` | ✅ (local dev server) |
-| Hosted / production deployment | ❌ |
-| Phase 2 — HITL / `ReviewerPool` | ❌ |
-| Phase 3 — wet-lab | ❌ |
+| Dapp | <https://desci-rating-dapp.vercel.app> |
+| `RatingController` | [`0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96`](https://sepolia.basescan.org/address/0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96) |
+| Chain | Base Sepolia (`84532`) |
+| DKG node | `https://verisci-dkg.duckdns.org` — OriginTrail `10.0.16`, `nodeRole: edge`, testnet |
+| GROBID | `https://verisci-grobid.duckdns.org` (secret path prefix) |
+| Context graph | `0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci` (on-chain registry id `433`) |
+| Jobs | Inngest Cloud → `POST /api/inngest` |
+| Chain events | Alchemy Notify → `POST /api/webhooks/alchemy` |
 
-**Phase-1 scoring** is a Gemini pass (default `gemini-3.5-flash-lite`, `temperature: 0`) over the Target KA's RDF triples, producing a structured `{ score, rationale, observed, missing }` verdict with `score` an integer in `[0, 100]`. The scoring heuristics are intentionally rough — the goal of this version was to prove the pipeline shape (request → score → R-KA → on-chain fulfill), not to produce a calibrated quality signal.
+| Capability | State |
+|---|---|
+| Publish KA (PDF → Target KA) | Verified in production |
+| Rate KA (wallet → oracle → R-KA → on-chain fulfill) | Verified in production |
+| Public HTTP API for agents | Not built — see [Roadmap](#roadmap) |
+| Payment / rate limiting | Not built — see [Roadmap](#roadmap) |
+| Phase 2 (human review), Phase 3 (wet-lab) | Not built |
 
-**Payment model V0:** `requestPhase1` is non-payable — it takes no ETH or TRAC beyond the caller's gas. The oracle wallet pays the `fulfillPhase1` gas and sponsors the DKG publish off-chain.
+**Phase-1 scoring** is a Gemini pass (default `gemini-3.5-flash-lite`, `temperature: 0`) over the Target KA's RDF triples, producing a structured `{ score, rationale, observed, missing }` verdict with `score` an integer in `[0, 100]`. The heuristics are intentionally rough — this version proves the pipeline shape (request → score → R-KA → on-chain fulfill), not a calibrated quality signal.
 
-### Deployed contract (Base Sepolia)
+**Payment model V0:** `requestPhase1` is non-payable. It takes no ETH or TRAC beyond the caller's gas. The oracle wallet pays `fulfillPhase1` gas and sponsors the DKG publish off-chain. This is a known abuse surface, addressed in the [Roadmap](#roadmap).
 
-[`0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96`](https://sepolia.basescan.org/address/0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96)
+---
 
-Alchemy Notify must watch this address. `ORACLE_AGENT` / `ORACLE_AGENT_PRIVATE_KEY` must match `oracleAgent()` on this deploy. The TS ABI and address are generated by `@desci/contracts` — do not hardcode them.
+## Deployment topology
+
+The app is not one process. Four systems cooperate, and the split is forced by a hard constraint: **a DKG node is a long-lived peer-to-peer daemon, and Vercel runs serverless functions that live for seconds.** The node therefore runs on a dedicated host that the app reaches over HTTPS.
+
+```mermaid
+flowchart LR
+  subgraph browser["Browser"]
+    UI["VeriSci dapp<br/>Reown AppKit wallet"]
+  end
+
+  subgraph vercel["Vercel — production branch: main"]
+    APP["Next.js 16 app<br/>server actions + RSC"]
+    INN_EP["/api/inngest"]
+    WH["/api/webhooks/alchemy"]
+  end
+
+  subgraph host["Node host (Ubuntu VM)"]
+    CADDY["Caddy :443 — TLS termination"]
+    DKG["DKG daemon :9200<br/>edge node, localhost-bound"]
+    GROBID["GROBID :8070<br/>localhost-bound"]
+    PROXY["rpc-proxy :8545<br/>localhost-bound"]
+  end
+
+  subgraph external["External services"]
+    INNGEST["Inngest Cloud"]
+    ALCHEMY["Alchemy Notify"]
+    PINATA["Pinata (IPFS)"]
+    GEMINI["Google Gemini"]
+  end
+
+  CHAIN["Base Sepolia<br/>RatingController"]
+
+  UI --> APP
+  UI -- "requestPhase1 (user-signed)" --> CHAIN
+  APP --> CADDY
+  APP --> PINATA
+  APP --> INNGEST
+  INNGEST --> INN_EP
+  INN_EP --> CADDY
+  INN_EP --> GEMINI
+  INN_EP -- "fulfillPhase1 (oracle-signed)" --> CHAIN
+  CHAIN --> ALCHEMY
+  ALCHEMY --> WH
+  WH --> INNGEST
+  CADDY --> DKG
+  CADDY --> GROBID
+  DKG --> PROXY
+  PROXY --> CHAIN
+```
+
+Only Caddy is exposed publicly. The DKG daemon, GROBID, and the RPC proxy all bind to `127.0.0.1`.
 
 ---
 
@@ -53,56 +105,64 @@ Two independent flows. A user may publish a KA without requesting a rating, or r
 
 ### Flow 1 — Publish a KA (PDF → Target KA)
 
-Available both from the web app (`Publish KA` modal on the landing page) and from the CLI (`pnpm dkg:publish-pdf`). Both converge on `runPdfToKaAgent`.
+Available from the web app (`Publish KA` modal on the landing page) and from the CLI (`pnpm dkg:publish-pdf`). Both converge on `runPdfToKaAgent`.
 
 ```mermaid
 flowchart TD
   subgraph entry["Entry points"]
-    WEB["Web: Publish KA modal\n→ uploadAndPin server action"]
-    CLI["CLI: pnpm dkg:publish-pdf\n→ readFile"]
+    WEB["Web: Publish KA modal<br/>→ uploadAndPin server action"]
+    CLI["CLI: pnpm dkg:publish-pdf<br/>→ readFile"]
   end
-  WEB --> PIN["pinPdfToIpfs (Pinata)\n→ ipfs:// CID"]
+  WEB --> PIN["pinPdfToIpfs (Pinata)<br/>→ ipfs:// CID"]
   CLI --> PIN
-  PIN -->|web only| EV["inngest.send(pdf.submitted)\n{ pdfCid, filename }"]
-  EV --> FN["Inngest publish-pdf\n→ fetchPdfByCid"]
+  PIN -->|"web only"| EV["inngest.send(pdf.submitted)<br/>pdfCid + filename"]
+  EV --> FN["Inngest publish-pdf<br/>→ fetchPdfByCid"]
   FN --> AGENT["runPdfToKaAgent"]
-  PIN -->|CLI: direct call| AGENT
-  AGENT --> GROBID["GROBID /api/processFulltextDocument\n→ TEI-XML"]
-  GROBID --> TEI["extractTeiSections\n→ title / abstract / authors / sections"]
-  TEI --> META["Gemini structured extract\n→ PublicationMetadata"]
-  META --> DAEMON["DKG daemon publishPublication\n① stores RDF assertion off-chain on DKG network\n② mints KA as NFT on-chain via /vm/publish"]
+  PIN -->|"CLI: direct call"| AGENT
+  AGENT --> GROBID["GROBID /api/processFulltextDocument<br/>→ TEI-XML"]
+  GROBID --> TEI["extractTeiSections<br/>→ title / abstract / authors / sections"]
+  TEI --> META["Gemini structured extract<br/>→ PublicationMetadata"]
+  META --> DAEMON["DKG daemon publishPublication<br/>① POST /api/knowledge-assets — RDF off-chain<br/>② POST /vm/publish — NFT on-chain"]
   DAEMON --> UAL["Target KA UAL"]
-  UAL -->|web: modal polls Inngest run| SHOW["UAL shown + copyable"]
+  UAL -->|"web: modal polls Inngest run"| SHOW["UAL shown + copyable"]
 ```
 
-The web modal enforces a 5 MB PDF limit and polls the Inngest REST API every 3 s for run status. GROBID + Gemini + DKG publish can exceed a single HTTP timeout, which is why the web path is a durable Inngest job (`finish: "10m"`) rather than an inline server action.
+**No wallet is involved.** The DKG daemon's operational wallet signs the KA mint and pays the gas.
+
+**Why GROBID *and* Gemini.** GROBID is a specialised model that converts PDF layout into structured TEI-XML — it recognises title blocks, author affiliations, and reference lists positionally. Gemini then reads that clean XML to extract semantic fields (methods, materials, RRIDs, data repository links). Running an LLM directly on raw PDF text is both worse and more expensive.
+
+**Why a durable job.** GROBID + Gemini + DKG publish routinely exceeds a single HTTP request budget, so the web path enqueues an Inngest job (`finish: "10m"`, 2 retries) and the modal polls run status every 3 s.
+
+`publishAssertion` is **idempotent by KA name**: it short-circuits to the existing UAL when the name already resolves, and recovers from "already exists" / "unfinished promote" responses by re-reading the UAL. Note that this only helps when the caller passes an explicit `name` — the default generated names (`desci-pub-*`) are fresh UUIDs, so **submitting the same PDF twice mints two Target KAs.** Deduplicating on the pinned CID is a [Roadmap](#roadmap) item.
 
 ### Flow 2 — Rate a KA (Phase-1 oracle)
 
 ```mermaid
 flowchart TD
   subgraph user["Web app (/rate-ka)"]
-    PICK["Pick an eligible KA from the table\nor paste any target UAL"] --> WALLET["Wallet connect\n(Reown AppKit, Base Sepolia 84532)"]
-    WALLET --> TX["simulateContract → writeContract\nrequestPhase1(targetUal)"]
+    PICK["Pick an eligible KA from the table<br/>or paste any target UAL"] --> WALLET["Wallet connect<br/>(Reown AppKit, Base Sepolia 84532)"]
+    WALLET --> TX["simulateContract → writeContract<br/>requestPhase1(targetUal)"]
   end
-  TX --> REQ["RatingController\n— sets isPending, emits Phase1Requested"]
+  TX --> REQ["RatingController<br/>— sets isPending, emits Phase1Requested"]
   REQ --> ALCH["Alchemy Notify"]
-  ALCH --> WH["POST /api/webhooks/alchemy\n(HMAC-verified, decodes logs)"]
-  WH --> INN["Inngest event\nRatingController/phase1.requested"]
-  INN --> FETCH["getAssetQuadsByUal\n→ RDF triples from DKG"]
-  FETCH --> SCORE["runKaScorerAgent\n→ { score, rationale, observed, missing }"]
-  SCORE --> RKA["DKG daemon publishRating: mint R-KA NFT\n(schema:about targetUal, schema:ratingValue score)"]
-  RKA --> FUL["fulfillPhase1(targetUal, score, rKaUal)\n— emits Phase1Fulfilled"]
-  FUL --> POLL["UI polls getRatingByUal every 5 s\n→ score + R-KA UAL"]
+  ALCH --> WH["POST /api/webhooks/alchemy<br/>(HMAC-verified, decodes logs)"]
+  WH --> INN["Inngest event<br/>RatingController/phase1.requested"]
+  INN --> FETCH["getAssetQuadsByUal<br/>→ RDF triples from DKG"]
+  FETCH --> SCORE["runKaScorerAgent<br/>→ score / rationale / observed / missing"]
+  SCORE --> RKA["DKG daemon publishRating: mint R-KA NFT<br/>(schema:about targetUal, schema:ratingValue score)"]
+  RKA --> FUL["fulfillPhase1(targetUal, score, rKaUal)<br/>— emits Phase1Fulfilled"]
+  FUL --> POLL["UI polls getRatingByUal every 5 s<br/>→ score + R-KA UAL"]
 ```
 
-The Inngest `phase1-requested` function retries 3 times with concurrency 5 global / 1 per `requestId`. It retries on `TargetAssetNotIndexedError` to absorb DKG indexing lag, and `fulfillPhase1OnChain` returns `already_fulfilled` without sending a tx if the record is already `Phase1Completed`. The UI shows a warning after 90 s (`ORACLE_STALL_MS`) if the oracle has not fulfilled.
+**Two wallets sign, and that is the security model.** The user signs the *request*, so `msg.sender` is recorded as the requester. Only `oracleAgent` can sign the *fulfillment* — `fulfillPhase1` is guarded by `onlyOracleAgent`, so scores cannot be forged.
+
+The `phase1-requested` function retries 3 times with concurrency 5 global / 1 per `requestId`. It retries on `TargetAssetNotIndexedError` to absorb DKG indexing lag, and `fulfillPhase1OnChain` reads `getRatingByUal` first, returning `already_fulfilled` without sending a transaction if the record is already `Phase1Completed`. The UI warns after 90 s (`ORACLE_STALL_MS`) if the oracle has not fulfilled.
 
 ---
 
 ## Repository layout
 
-pnpm workspaces + Turborepo.
+pnpm workspaces + Turborepo. **pnpm only** (`pnpm@10.24.0`) — never npm or yarn.
 
 ```
 apps/web                 Next.js 16 dapp — landing, catalog, publish modal, /rate-ka,
@@ -113,6 +173,12 @@ packages/contracts       Foundry — RatingController.sol + generated TS ABI/add
 packages/env             Typed env catalog (@t3-oss/env-core + Zod)
 packages/shared          Chain constants + shared types
 ```
+
+Conventions:
+
+- Import direction is **app → packages**. Packages never import from `apps/web`.
+- Contract ABI and address come from `@desci/contracts` — never hardcode them.
+- Chain id comes from `BASE_SEPOLIA_CHAIN_ID` (`84532`) in `@desci/shared`.
 
 Package-level docs:
 
@@ -127,52 +193,185 @@ Package-level docs:
 
 ---
 
-## Prerequisites
+## Local development
+
+### Prerequisites
 
 - Node.js + `pnpm@10.24.0`
-- OriginTrail DKG CLI (`@origintrail-official/dkg` in root devDeps — `pnpm dkg:start`)
+- OriginTrail DKG CLI (`@origintrail-official/dkg`, in root devDependencies)
 - Foundry (`forge`) for contracts
 - Docker for GROBID
-- Pinata JWT — PDF pin (pin-only; the KA stores `ipfs://…`)
-- Google Gemini key — `pdf-to-ka` extract + `ka-scorer`
-- Base Sepolia RPC + oracle wallet — `fulfillPhase1`, deploy, and all server-side on-chain reads
-- Reown AppKit project id — wallet connect in the web app
+- Pinata JWT, Google Gemini key, Base Sepolia RPC URL, oracle wallet, Reown project id
 
-The DKG daemon and GROBID run locally. Everything else is an external API.
-
----
-
-## Setup
+### Install
 
 ```bash
 git clone <this-repo>
 cd desci-rating-dapp
 pnpm install
-cp .env.example .env
-# fill in .env — see Environment
-pnpm dkg:init                     # first-time daemon setup only (already passes --network testnet)
+cp .env.example .env          # fill in — see Environment
+pnpm dkg:init                 # first-time daemon setup (passes --network testnet)
 pnpm build
 ```
+
+### Run the full stack
+
+```bash
+pnpm dkg:start      # DKG daemon on 127.0.0.1:9200
+pnpm grobid:up      # GROBID container on 127.0.0.1:8070
+pnpm dev            # Next.js on :3000
+pnpm inngest:dev    # Inngest Dev Server → http://localhost:3000/api/inngest
+```
+
+GROBID is ready when `curl -s http://127.0.0.1:8070/api/isalive` returns `true`. The image is `grobid/grobid:0.8.2-crf` (~500 MB, CPU-only); the Compose file uses `network_mode: host` (Linux), so on Docker Desktop replace it with `ports: ["8070:8070"]`.
+
+The landing page probes the daemon once per request (`probeDkgDaemon` → `GET /api/status`, wrapped in React `cache()`). When it is unreachable the catalog and the Publish button degrade to a "DKG connection not available" state instead of erroring.
+
+Alchemy Notify needs a public HTTPS URL. Locally, use `ngrok http 3000` and point the webhook at `https://<host>/api/webhooks/alchemy`, or inject the `RatingController/phase1.requested` event directly from the Inngest Dev Server UI.
+
+### CLI-only workflows
+
+```bash
+# Sample KA + mock R-KA, no external services
+pnpm dkg:publish-sample          # prints a Target KA UAL
+# set DKG_UAL and DKG_CONTEXT_GRAPH_ID in .env
+pnpm dkg:fetch-asset             # Action A: KA triples  /  Action B: empty
+pnpm dkg:publish-rating          # mock R-KA, score=85
+pnpm dkg:fetch-asset             # Action B now shows the rating
+
+# Real PDF → publication Target KA
+pnpm grobid:up
+pnpm dkg:publish-pdf packages/agents/fixtures/asx-pub.pdf
+```
+
+---
+
+## Production setup
+
+Reproducing the deployment has two halves: a **node host** that runs the long-lived services, and **Vercel** for the app.
+
+### 1 — Node host
+
+An Ubuntu VM with a public IP and two DNS names. Everything except Caddy binds to localhost.
+
+| Unit | Port | Role |
+|---|---|---|
+| `caddy` | 443 | TLS termination + reverse proxy |
+| `dkg.service` | 9200 | OriginTrail edge node |
+| GROBID (Docker) | 8070 | PDF → TEI-XML |
+| `rpc-proxy.service` | 8545 | JSON-RPC proxy for the DKG node (see below) |
+
+Caddy maps `verisci-dkg.duckdns.org` → `127.0.0.1:9200` and `verisci-grobid.duckdns.org` → `127.0.0.1:8070`. GROBID has no authentication of its own, so it is published under a **secret path prefix** rather than at the domain root.
+
+DKG daemon configuration (`~/.dkg/config.json`):
+
+```json
+{
+  "nodeRole": "edge",
+  "networkConfig": "testnet",
+  "contextGraphs": ["0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci"],
+  "chain": { "rpcUrl": "http://127.0.0.1:8545", "rpcUrls": [] }
+}
+```
+
+List the graph under `contextGraphs` so the node re-subscribes on every restart — a runtime `dkg subscribe` alone does not survive a restart:
+
+```bash
+dkg subscribe 0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci
+```
+
+### 2 — Why a local RPC proxy is required
+
+This is the least obvious part of the setup, so it is worth stating plainly.
+
+Before an edge node accepts a write into a context graph, it must resolve that graph's **access and publish policy from chain state**. That read (`getContextGraphAuthoritySnapshot`) issues paginated `eth_getLogs` over a large block range plus a number of `eth_call`s. If it fails, the node reports:
+
+```
+authorityState = blocked
+stableReason   = authority-resolution-failed
+```
+
+and refuses every write with `Context graph "…" is known but is not locally synced for writes`. **A blockchain read limit therefore surfaces as an unexplained publish failure.**
+
+Free RPC tiers cannot serve that read directly:
+
+| Provider | `eth_getLogs` behaviour |
+|---|---|
+| Alchemy free | Hard 10-block range cap |
+| Public Base Sepolia endpoints | Accept ~2000-block windows, throttle bursts aggressively |
+
+The DKG daemon accepts exactly **one** `rpcUrl`, so the fix is a small JSON-RPC proxy on `127.0.0.1:8545` that the daemon treats as an ordinary node. It routes bulk `eth_getLogs` to public endpoints and everything else to Alchemy, with per-endpoint concurrency limits, throttle-aware backoff, and cross-provider failover.
+
+Three properties are load-bearing, each learned from a failure:
+
+1. **Always return well-formed JSON-RPC.** A bare `{"error":{...}}` without `id` and `jsonrpc` makes the daemon fail with `BAD_DATA`, which masks the real cause.
+2. **Cache the chain head.** Deriving the tip per `getLogs` call generates tens of thousands of redundant `eth_blockNumber` requests and exhausts the provider quota.
+3. **Keep latency-sensitive calls out of the bulk queue.** The daemon enforces a **4-second deadline** on its head probe. If cheap calls queue behind the historical backfill, authority resolution times out even though every individual request succeeds.
+
+Order the units so the proxy is up before the daemon, otherwise a reboot reproduces the original failure:
+
+```ini
+# /etc/systemd/system/dkg.service.d/10-after-rpc-proxy.conf
+[Unit]
+After=rpc-proxy.service
+Wants=rpc-proxy.service
+```
+
+Health check:
+
+```bash
+systemctl is-active rpc-proxy dkg
+
+curl -s http://127.0.0.1:9200/api/status | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+g=(d.get('rfc64Catalog') or {}).get('contextGraphs') or [{}]
+for k in ['phase','authorityState','accessPolicy','publishPolicy','stableReason']:
+    print(k,'=',g[0].get(k))
+"
+```
+
+`accessPolicy` is the field that matters: once it holds a value, writes are accepted. A `stableReason` of `catalog-replay-incomplete` on an empty graph is expected and does **not** block writes.
+
+### 3 — Vercel
+
+Set the project **Root Directory** to `apps/web` with "include files outside this directory" enabled, Framework Preset **Next.js**, and leave **Output Directory** empty. [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and builds with `pnpm turbo run build --filter=web`.
+
+Production branch is `main`. Required production environment:
+
+- `DKG_API_URL` + `DKG_AUTH_TOKEN` pointing at the hosted node, and the full `DKG_CONTEXT_GRAPH_ID`
+- `GROBID_URL` including the secret path prefix
+- `GOOGLE_API_KEY`, `PINATA_JWT`, `IPFS_GATEWAY_URL`
+- `BASE_SEPOLIA_RPC_URL`, `ORACLE_AGENT_PRIVATE_KEY`
+- `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `ALCHEMY_BASE_SEPOLIA_WH_SK`
+- `NEXT_PUBLIC_APP_URL` set to the deployed origin, and `NEXT_PUBLIC_REOWN_PROJECT_ID`
+
+`DEV_SKIP_DKG_MINT` must **never** be set in production.
+
+`@desci/contracts` builds with `tsc` over the committed `ts/` ABI files, because Foundry is not available on Vercel. After Solidity changes, regenerate locally with `pnpm contracts:build` and commit `packages/contracts/ts/`.
+
+### 4 — Wire the external services
+
+- **Inngest Cloud** — sync the app so `/api/inngest` registers all five functions.
+- **Alchemy Notify** — watch the `RatingController` address on Base Sepolia and POST to `/api/webhooks/alchemy`. The route returns 500 without `ALCHEMY_BASE_SEPOLIA_WH_SK`.
+- **Reown** — add the deployed origin to Allowed Origins in [Reown Cloud](https://dashboard.reown.com), matching `NEXT_PUBLIC_APP_URL`.
 
 ---
 
 ## Environment
 
-All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
-
-`apps/web/next.config.ts` merges the repo-root `.env` into `process.env` at config load (existing process env wins) — do not create `apps/web/.env.local` as a second source of truth.
+All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example). `apps/web/next.config.ts` merges that file into `process.env` at config load (existing process env wins) — do not create `apps/web/.env.local` as a second source of truth. **Never commit `.env`.**
 
 Every variable is declared **optional** in `@desci/env` so builds never fail on a missing key; feature boundaries call `requireEnv` / `requireDkgContextGraphId` and throw at use time instead.
 
 | Variable | Purpose |
 |---|---|
-| `DKG_CONTEXT_GRAPH_ID` | Context graph (default `verisci`). Required by the Inngest workers and the web catalog |
-| `DKG_API_URL` / `DKG_API_PORT` / `DKG_AUTH_TOKEN` / `DKG_HOME` | Daemon overrides. Defaults resolve from `~/.dkg` and port `9200` |
+| `DKG_CONTEXT_GRAPH_ID` | Context graph id. Required by the Inngest workers and the web catalog |
+| `DKG_API_URL` / `DKG_API_PORT` / `DKG_AUTH_TOKEN` / `DKG_HOME` | Daemon location and auth. Defaults resolve from `~/.dkg` and port `9200` |
 | `DKG_KA_NAME` / `DKG_UAL` / `DKG_SUBJECT_URI` / `DKG_PDF_PATH` | CLI script overrides |
-| `GROBID_URL` | Default `http://127.0.0.1:8070` |
+| `GROBID_URL` | Default `http://127.0.0.1:8070`; in production, includes the secret path prefix |
 | `GROBID_TIMEOUT_MS` | Optional; default `120000` |
 | `PINATA_JWT` | Required for `pnpm dkg:publish-pdf` and the web Publish KA flow |
-| `IPFS_GATEWAY_URL` | Optional; defaults to `https://gateway.pinata.cloud/ipfs` |
+| `IPFS_GATEWAY_URL` | Optional; defaults to the Pinata public gateway |
 | `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `pdf-to-ka` + `ka-scorer` (`GOOGLE_API_KEY` wins) |
 | `GEMINI_MODEL` | Optional; default `gemini-3.5-flash-lite` |
 | `BASE_SEPOLIA_RPC_URL` | Deploy, `fulfillPhase1`, and all server-side contract reads |
@@ -181,66 +380,14 @@ Every variable is declared **optional** in `@desci/env` so builds never fail on 
 | `ORACLE_AGENT_PRIVATE_KEY` | Viem signer for `fulfillPhase1` — must match on-chain `oracleAgent()`. Not the deployer key |
 | `ETHERSCAN_API_KEY` | `forge script --verify` |
 | `ALCHEMY_BASE_SEPOLIA_WH_SK` | HMAC secret for `/api/webhooks/alchemy`; the route returns 500 without it |
-| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Cloud Inngest only; not needed for the local Dev Server |
+| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Inngest Cloud; not needed for the local Dev Server |
 | `INNGEST_API_BASE_URL` | Optional REST base for publish-status polling. Defaults to `http://localhost:8288` in dev, `https://api.inngest.com` in production |
-| `DEV_SKIP_DKG_MINT` | Dev escape hatch. When `"true"`, the oracle scores normally but skips the DKG R-KA write and returns a synthetic UAL so `fulfillPhase1` can still complete |
+| `DEV_SKIP_DKG_MINT` | **Development only.** Skips the DKG R-KA write and returns a synthetic UAL so `fulfillPhase1` can still complete |
+| `NEXT_PUBLIC_APP_URL` | Reown AppKit `metadata.url`. Falls back to `http://localhost:3000` |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID` | Reown AppKit. Optional — without it the app builds and renders, but wallet connect is disabled |
 | `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` / `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | Optional footer links |
 
 `STITCH_API_KEY` appears in `.env.example` for the Google Stitch MCP server, which reads it from the OS environment — it is not read from `.env` and not used by the app.
-
-Never commit `.env`.
-
----
-
-## Local workflows
-
-### 1 — Sample KA + mock R-KA (no external services)
-
-```bash
-pnpm dkg:start
-pnpm dkg:publish-sample          # prints a Target KA UAL
-# set DKG_UAL and DKG_CONTEXT_GRAPH_ID in .env
-pnpm dkg:fetch-asset             # Action A: KA triples  /  Action B: empty (no rating yet)
-pnpm dkg:publish-rating          # mock R-KA, score=85, author=BioProtocol_Phase1_Agent
-pnpm dkg:fetch-asset             # Action B now shows the rating
-```
-
-Publishing is idempotent **by KA name** — if the named KA already exists its UAL is returned instead of republishing.
-
-### 2 — PDF → publication Target KA (CLI)
-
-```bash
-# Requires: GOOGLE_API_KEY, PINATA_JWT, DKG_CONTEXT_GRAPH_ID
-pnpm dkg:start
-pnpm grobid:up
-# wait: curl -s http://127.0.0.1:8070/api/isalive → true
-pnpm dkg:publish-pdf packages/agents/fixtures/asx-pub.pdf
-```
-
-Flow: `readFile` → `pinPdfToIpfs` → `runPdfToKaAgent` (GROBID → TEI → Gemini → DKG publish).
-
-GROBID image: `grobid/grobid:0.8.2-crf` (~500 MB, CPU-only). The Compose file uses `network_mode: host` (Linux); on Docker Desktop replace it with `ports: ["8070:8070"]`.
-
-Output: a Target KA UAL with `schema:encoding` / `schema:contentUrl` set to `ipfs://…`.
-
-### 3 — Full app: web dapp + Phase-1 oracle
-
-```bash
-# Requires: DKG_CONTEXT_GRAPH_ID, GOOGLE_API_KEY, PINATA_JWT,
-#           BASE_SEPOLIA_RPC_URL, ORACLE_AGENT_PRIVATE_KEY,
-#           ALCHEMY_BASE_SEPOLIA_WH_SK, NEXT_PUBLIC_REOWN_PROJECT_ID
-pnpm dkg:start
-pnpm grobid:up
-pnpm dev            # Next.js on :3000
-pnpm inngest:dev    # Inngest Dev Server → http://localhost:3000/api/inngest
-```
-
-Then open <http://localhost:3000>. The landing page probes the daemon once per request (`probeDkgDaemon` → `GET /api/status`, wrapped in React `cache()`); when it is unreachable the catalog and the Publish KA button degrade to a "DKG connection not available" state instead of erroring.
-
-Alchemy Notify requires a public HTTPS URL. Use `ngrok http 3000` and point the webhook at `https://<host>/api/webhooks/alchemy`.
-
-**Without Alchemy:** inject the `RatingController/phase1.requested` event directly from the Inngest Dev Server UI.
 
 ---
 
@@ -248,8 +395,8 @@ Alchemy Notify requires a public HTTPS URL. Use `ngrok http 3000` and point the 
 
 | Script | Purpose |
 |---|---|
-| `pnpm build` / `dev` / `test` / `clean` | Turborepo. `test` currently resolves to the Foundry suite only — no other package defines a `test` task |
-| `pnpm dkg:init` / `dkg:start` / `dkg:stop` | DKG daemon lifecycle |
+| `pnpm build` / `dev` / `test` / `clean` | Turborepo. `test` currently resolves to the Foundry suite only |
+| `pnpm dkg:init` / `dkg:start` / `dkg:stop` | Local DKG daemon lifecycle |
 | `pnpm dkg:publish-sample` | Publish a sample Target KA |
 | `pnpm dkg:publish-rating` | Publish a mock R-KA (requires `DKG_UAL`) |
 | `pnpm dkg:fetch-asset` | Print KA quads + ratings for a UAL |
@@ -266,11 +413,11 @@ Alchemy Notify requires a public HTTPS URL. Use `ngrok http 3000` and point the 
 
 ### `@desci/dkg-client`
 
-`createDkgClient()` connects to the local daemon and exposes `ensureContextGraph`, `publishAsset`, `getAssetUal`, `publishPublication`, `publishRating`, `query`, `getAssetQuadsByUal`, `queryRatingsAbout`, `getChainId`, `getHubAddress`, `getApiBaseUrl`, and `stop()` (a no-op — daemon lifecycle belongs to `pnpm dkg:start` / `dkg stop`). The package also exports `probeDkgDaemon` for cheap liveness checks, `queryPublicationsWithRatings` for the catalog, the KA graph builders, and the vocab IRIs.
+`createDkgClient()` connects to the daemon and exposes `ensureContextGraph`, `publishAsset`, `getAssetUal`, `publishPublication`, `publishRating`, `query`, `getAssetQuadsByUal`, `queryRatingsAbout`, `getChainId`, `getHubAddress`, `getApiBaseUrl`, and `stop()` (a no-op — daemon lifecycle is external). Also exports `probeDkgDaemon` for cheap liveness checks, `queryPublicationsWithRatings` for the catalog, the KA graph builders, and the vocab IRIs.
 
-Auth and API URL resolve from `createDkgClient({ apiUrl, authToken })` or env / `~/.dkg`: `DKG_AUTH_TOKEN` or `~/.dkg/auth.token`; `DKG_API_URL`, else `~/.dkg/api.port`, else `config.json` `apiPort`, else `DKG_API_PORT` (default `9200`). `DKG_HOME` overrides the `~/.dkg` directory.
+Auth and API URL resolve from `createDkgClient({ apiUrl, authToken })` or env / `~/.dkg`: `DKG_AUTH_TOKEN` or `~/.dkg/auth.token`; `DKG_API_URL`, else `~/.dkg/api.port`, else `config.json` `apiPort`, else `DKG_API_PORT` (default `9200`).
 
-R-KA quads: `schema:about`, `schema:ratingValue`, `schema:author`, `schema:description`. Publication graphs use schema.org plus DEO section types. `getAssetQuadsByUal` throws `TargetAssetNotIndexedError` (code `"TargetAssetNotIndexed"`) on an empty result — the Inngest function retries on this to handle indexing lag.
+R-KA quads: `schema:about`, `schema:ratingValue`, `schema:author`, `schema:description`. Publication graphs use schema.org plus DEO section types. `getAssetQuadsByUal` throws `TargetAssetNotIndexedError` on an empty result, which the Inngest function retries to absorb indexing lag.
 
 ### `@desci/agents`
 
@@ -283,7 +430,7 @@ R-KA quads: `schema:about`, `schema:ratingValue`, `schema:author`, `schema:descr
 
 LLM: LangChain `ChatGoogleGenerativeAI` + Zod structured output. No LangGraph.
 
-`ka-scorer` ignores PDF pin metadata (`schema:encoding`, `contentUrl`, `encodingFormat`, `MediaObject`) — dropped in code before the prompt, and restated in the prompt. It rewards author-side `schema:distribution` links and methods/materials / RRID evidence. Named statistical tests are not treated as validated results (MVP heuristic).
+`ka-scorer` ignores PDF pin metadata (`schema:encoding`, `contentUrl`, `encodingFormat`, `MediaObject`) — dropped in code before the prompt and restated in the prompt. It rewards author-side `schema:distribution` links and methods/materials / RRID evidence. Named statistical tests are not treated as validated results (MVP heuristic).
 
 ### `@desci/contracts`
 
@@ -291,85 +438,79 @@ LLM: LangChain `ChatGoogleGenerativeAI` + Zod structured output. No LangGraph.
 
 `RatingRecord` fields: `phase`, `isPending`, `phase1Score`, `phase2Score`, `phase3Score`, `rKaUal`. The `Phase` enum has four values (`Unrated`, `Phase1Completed`, `Phase2Completed`, `Phase3Completed`) but only Phase 1 has `request`/`fulfill` functions. `requestId = keccak256(abi.encodePacked(targetUal))`.
 
-`forge build` runs `scripts/export-abi.mjs`, which writes `ts/ratingControllerAbi.ts` and `ts/deployments.ts` from the Forge artifact and the Base Sepolia broadcast file. If that broadcast is missing, the fallback address `0x9D53bdabB8Eb1c724323c5542d5C344B2d84B2Cc` is used. Do not edit these files by hand.
+`forge build` runs `scripts/export-abi.mjs`, which writes `ts/ratingControllerAbi.ts` and `ts/deployments.ts` from the Forge artifact and the Base Sepolia broadcast file. Do not edit these by hand.
 
 ### `@desci/env` / `@desci/shared`
 
-`@desci/env`: typed optional env via `@t3-oss/env-core`, split into a server entry (`@desci/env`) and a client entry (`@desci/env/client`, `NEXT_PUBLIC_*` only), plus `requireEnv` for feature-boundary validation. `@desci/shared`: `BASE_SEPOLIA_CHAIN_ID` (`84532`), the DKG hub address, the `RATING_PHASE` enum mirroring Solidity, and shared quad/publish types.
+`@desci/env`: typed optional env via `@t3-oss/env-core`, split into a server entry (`@desci/env`) and a client entry (`@desci/env/client`, `NEXT_PUBLIC_*` only), plus `requireEnv` for feature-boundary validation.
+
+`@desci/shared`: `BASE_SEPOLIA_CHAIN_ID` (`84532`), the DKG hub address, the `RATING_PHASE` enum mirroring Solidity, and shared quad/publish types.
 
 ---
 
-## Why it is not production-ready
+## Roadmap
 
-Every item below is a real blocker in the current code, not a stylistic concern.
+### 1 — Machine-payable access (next)
 
-**Local-only infrastructure**
+Both flows are currently free and unauthenticated, so anyone who can reach the app can spend the project's Pinata, Gemini, DKG, and oracle-gas budget. The fix differs per flow, because **the two flows have different entry points**.
 
-- The **DKG daemon** is reached at `127.0.0.1:9200` with credentials read from `~/.dkg`. Server components call it directly on every catalog render, so any hosted deploy has no daemon at all. Production needs a remotely reachable DKG node and token-based auth instead of a home-directory file.
-- **GROBID** is a Docker sidecar on `127.0.0.1:8070`, started by hand with `pnpm grobid:up`. It needs to become a managed service or a remote URL.
-- **Inngest** runs against the local Dev Server. Cloud requires `INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY` and a publicly reachable `/api/inngest`.
-- **Alchemy Notify** needs a public HTTPS endpoint; today that is an `ngrok` tunnel, so the oracle only fires while a developer keeps the tunnel open.
+**Publish — HTTP API + x402.** The entry point is the server, so every cost sits behind the HTTP boundary and can be gated there.
 
-**Hardcoded / dev-only values**
+- Extract a transport-agnostic core (`submitPdfForPublishing`) from the `uploadAndPin` server action, keeping PDF validation inside the core so both callers enforce it.
+- Add `POST /api/v1/publish` returning `202 { jobId, statusUrl }`, plus a free `GET /api/v1/publish/{jobId}`.
+- Gate the POST with **x402** using `withX402` from `@x402/next`, which settles payment only after a successful response, rather than `paymentProxy`, which charges even when the handler fails.
+- Dedupe on the pinned CID so a retry of the same paper is not billed twice.
 
-- `apps/web/src/lib/wagmi.ts` sets AppKit `metadata.url` to `http://localhost:3000`. This must match the deployed origin, and that origin must be added to Allowed Origins in [Reown Cloud](https://dashboard.reown.com).
-- `DEV_SKIP_DKG_MINT` exists to work around DKG write-quorum failures by fabricating an R-KA UAL. It must never be enabled outside development, and there is currently no guard preventing that.
-- Only Base Sepolia (`84532`) is in `RATING_CONTROLLER_ADDRESSES`; `getRatingControllerAddress` throws for any other chain.
+**Rate — payable on-chain, not x402.** `requestPhase1` is `external` and non-payable with no access control, and the oracle is triggered by Alchemy watching chain events. An agent can therefore bypass any HTTP endpoint entirely and call the contract directly, so **an x402 route would gate nothing**. The toll has to live in the contract:
 
-**Hardening not yet done**
+- Make `requestPhase1` payable with an owner-settable `requestFee`, sized to cover `fulfillPhase1` gas + the Gemini call + the DKG publish.
+- Store `address requester` on `RatingRecord` — it is currently only emitted in the event, so no refund is possible. It packs into the existing slot: `Phase`(1) + `bool`(1) + three `uint8`(3) = 5 bytes, leaving room for a 20-byte address.
+- Add a requester-callable timeout cancel that refunds the fee. Today only `owner` or `oracleAgent` can call `cancelPendingRequest`, so a stalled oracle would strand user funds.
+- Prefer ETH via `msg.value` over USDC: no approve step, and the caller already holds ETH for gas.
 
-- The `uploadAndPin` server action validates only PDF type and a 5 MB size cap. There is no authentication, rate limiting, or abuse protection, so anyone who can reach the app can spend the project's Pinata, Gemini, and DKG quota.
-- Publishing and rating requests are free, and the oracle wallet pays every `fulfillPhase1` gas fee and DKG publish. A hosted deploy needs a funding and abuse model.
-- `RatingController.setOracleAgent` and `cancelPendingRequest` are guarded only by a single EOA `owner`. A stalled request stays locked until that key acts.
-- Test coverage is Foundry-only. `@desci/agents`, `@desci/dkg-client`, `@desci/env`, `@desci/shared`, and `apps/web` have no tests, so `pnpm test` exercises the contract alone.
-- There is no observability beyond `console.log` in the webhook and Inngest functions.
+Note that on Base Sepolia neither mechanism actually throttles anyone, since both testnet ETH and testnet USDC are free from faucets. Both are demonstrations of the mechanism; real abuse protection begins on mainnet.
 
-### Vercel notes (preview builds only)
+### 2 — Operational hardening
 
-[`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and runs `pnpm turbo run build --filter=web` (dependencies via Turbo `^build`). Set the Vercel project **Root Directory** to `apps/web` with "include files outside this directory" enabled, Framework Preset = **Next.js**, and leave **Output Directory** empty.
+- Replace `console.log` with structured logging and alerting on the webhook and Inngest functions.
+- Add tests beyond Foundry — `@desci/agents`, `@desci/dkg-client`, and `apps/web` currently have none.
+- Guard `DEV_SKIP_DKG_MINT` so it cannot be enabled in a production build.
+- Move `RatingController` ownership off a single EOA; `setOracleAgent` and `cancelPendingRequest` are guarded only by `owner`.
 
-A preview build renders the shell, the wallet connect, and — with `BASE_SEPOLIA_RPC_URL` set — the on-chain reads on `/rate-ka`. A user could even send `requestPhase1` and lock the record on-chain, but no oracle would fulfill it, because the catalog, the publish flow, and the oracle worker all need the local daemon. Treat a preview as a UI check, not a working product.
-
-`@desci/contracts` `build` is `tsc` over the committed `ts/` ABI files, because Foundry is not available on Vercel. After Solidity changes, regenerate locally with `pnpm contracts:build` and commit `packages/contracts/ts/`.
-
----
-
-## Next steps
-
-### 1 — Production setup
-
-The prerequisite for everything else, in rough dependency order:
-
-1. Host the DKG node so the app can reach it over the network, and move auth off `~/.dkg`.
-2. Host GROBID as a service and point `GROBID_URL` at it.
-3. Move Inngest to Cloud and expose `/api/inngest` publicly.
-4. Repoint Alchemy Notify from the tunnel to the deployed webhook URL.
-5. Deploy `apps/web`, fix `metadata.url`, and register the origin with Reown.
-6. Add auth / rate limiting to the publish action and decide who funds oracle gas and DKG publishes.
-
-### 2 — Phase 2: `requestPhase2` (human review)
+### 3 — Phase 2: `requestPhase2` (human review)
 
 Eligible only when `phase == Phase1Completed` and not already pending.
 
 - **`RatingController`**: add `requestPhase2` / `fulfillPhase2`. Fulfill stores `phase2Score`, sets `Phase2Completed`, clears pending, and writes a `wetLabRecommended` boolean that gates Phase 3.
 - **`ReviewerPool`** (new contract, owned by `RatingController`): enroll/stake, Chainlink VRF cohort draw, optional disjoint redraw on no consensus.
-- **Off-chain**: HITL oracle flow triggered by the Phase-2 request event; oracle calls `fulfillPhase2`. `update()` the existing R-KA UAL (no new NFT).
+- **Off-chain**: HITL oracle flow triggered by the Phase-2 request event; oracle calls `fulfillPhase2`. `update()` the existing R-KA UAL — no new NFT.
 
-### 3 — Phase 3: `requestPhase3` (wet-lab)
+### 4 — Phase 3: `requestPhase3` (wet-lab)
 
 Eligible only when `phase == Phase2Completed` and `wetLabRecommended == true`.
 
 - **`RatingController`**: add `requestPhase3` / `fulfillPhase3`. Fulfill stores `phase3Score`, sets `Phase3Completed`, clears pending.
-- **Off-chain**: wet-lab oracle flow triggered by the Phase-3 request event; oracle calls `fulfillPhase3`. `update()` the same R-KA UAL (no new NFT).
+- **Off-chain**: wet-lab oracle flow triggered by the Phase-3 request event; oracle calls `fulfillPhase3`. `update()` the same R-KA UAL.
 
-R-KA lifetime: mint once in Phase 1 (`rKaUal` stored on-chain); Phase 2 and 3 `update()` that same asset. No new NFT.
+R-KA lifetime: mint once in Phase 1 (`rKaUal` stored on-chain); Phases 2 and 3 `update()` that same asset.
+
+---
+
+## Known limitations
+
+- **No authentication or rate limiting.** The `uploadAndPin` server action validates only PDF type and a 5 MB cap. Addressed by Roadmap item 1.
+- **Single-chain.** Only Base Sepolia (`84532`) is in `RATING_CONTROLLER_ADDRESSES`; `getRatingControllerAddress` throws for any other chain.
+- **Oracle is a single point of failure.** One key signs every `fulfillPhase1`. If it stalls, requests stay `isPending` until `owner` or `oracleAgent` cancels them.
+- **Scoring is not calibrated.** Phase-1 heuristics are deliberately rough pending a labelled dataset.
+- **Single DKG node.** The app depends on one edge node; there is no failover.
+- **Test coverage is Foundry-only.**
 
 ---
 
 ## Open questions
 
 - Proxy upgradeability vs an immutable `ratings` mapping — V0 ships immutable.
-- Composite scoring weights across phases — deliberately unspecified until a labeled dataset exists.
+- Composite scoring weights across phases — deliberately unspecified until a labelled dataset exists.
 - Citation-triggered re-score via `cito:cites` SPARQL — not in V0.
 
 ---
