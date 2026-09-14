@@ -1,0 +1,41 @@
+---
+description: Monorepo map, pnpm/turbo, package boundaries, env and chain constants
+alwaysApply: true
+---
+
+# desci-rating-dapp monorepo
+
+## Tooling
+
+- Package manager: **pnpm** only (`pnpm@10.24.0`). Never npm or yarn.
+- Builds/tests via **Turbo**: `pnpm build`, `pnpm test`, `pnpm --filter <pkg> <script>`.
+- Workspace package name for the Next app is **`web`** (`apps/web`), not `@desci/web`.
+
+## Package map
+
+| Path | Package | Role |
+|---|---|---|
+| `apps/web` | `web` | Next.js dapp + Alchemy webhook + Inngest serve |
+| `packages/agents` | `@desci/agents` | pdf-to-ka, ka-scorer, IPFS, Inngest/EVM |
+| `packages/contracts` | `@desci/contracts` | Foundry RatingController + generated TS ABI |
+| `packages/dkg-client` | `@desci/dkg-client` | DKG V10 daemon client + KA builders |
+| `packages/env` | `@desci/env` | Typed env catalog (`@t3-oss/env-core` + Zod) |
+| `packages/shared` | `@desci/shared` | Chain constants + shared types |
+
+## Boundaries
+
+- Import direction: **app → packages**. Packages must not import from `apps/web`.
+- Prefer public package exports; do not reach into another package's `src/` internals.
+- Contract ABI/address: use `@desci/contracts` generated files. **Do not hardcode** the RatingController address or ABI.
+- Chain id: use `BASE_SEPOLIA_CHAIN_ID` (`84532`) from `@desci/shared`.
+
+## Secrets
+
+- All secrets live in **repo-root `.env`**. Next loads it via `apps/web/next.config.ts`.
+- Do **not** create `apps/web/.env.local` as a second source of truth.
+- Never commit `.env`.
+
+## Product flows (see root README)
+
+1. **Publish KA** — PDF → IPFS pin → GROBID/Gemini → Target KA UAL (CLI today; web job later).
+2. **Rate KA** — wallet `requestPhase1(targetUal)` → existing oracle mints R-KA and `fulfillPhase1`. Users do not mint R-KAs themselves.

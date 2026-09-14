@@ -1,0 +1,18 @@
+node_modules/
+.next/
+dist/
+out/
+*.tsbuildinfo
+cache
+broadcast
+out-foundry
+.env
+.env.local
+.dkg-data
+*.log
+
+# Agent skill installs (local; lockfile optional for team)
+.agents/
+.claude/
+agent/
+skills-lock.json

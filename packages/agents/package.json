@@ -1,0 +1,47 @@
+{
+  "name": "@desci/agents",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./pdf-to-ka": {
+      "types": "./dist/agents/pdf-to-ka/index.d.ts",
+      "default": "./dist/agents/pdf-to-ka/index.js"
+    },
+    "./ka-scorer": {
+      "types": "./dist/agents/ka-scorer/index.d.ts",
+      "default": "./dist/agents/ka-scorer/index.js"
+    },
+    "./ipfs": {
+      "types": "./dist/ipfs/index.d.ts",
+      "default": "./dist/ipfs/index.js"
+    },
+    "./inngest": {
+      "types": "./dist/integrations/inngest/index.d.ts",
+      "default": "./dist/integrations/inngest/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist out"
+  },
+  "dependencies": {
+    "@desci/contracts": "workspace:*",
+    "@desci/dkg-client": "workspace:*",
+    "@desci/env": "workspace:*",
+    "@desci/shared": "workspace:*",
+    "@langchain/google-genai": "^0.2.18",
+    "fast-xml-parser": "^5.2.5",
+    "inngest": "^3.44.3",
+    "viem": "^2.56.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
