@@ -12,6 +12,7 @@ export const clientEnv = createEnv({
     NEXT_PUBLIC_REOWN_PROJECT_ID: z.string().min(1).optional(),
     NEXT_PUBLIC_CONTACT_PORTFOLIO_URL: z.string().url().optional(),
     NEXT_PUBLIC_CONTACT_LINKEDIN_URL: z.string().url().optional(),
+    NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   },
   runtimeEnv: {
     NEXT_PUBLIC_REOWN_PROJECT_ID: process.env.NEXT_PUBLIC_REOWN_PROJECT_ID,
@@ -19,6 +20,7 @@ export const clientEnv = createEnv({
       process.env.NEXT_PUBLIC_CONTACT_PORTFOLIO_URL,
     NEXT_PUBLIC_CONTACT_LINKEDIN_URL:
       process.env.NEXT_PUBLIC_CONTACT_LINKEDIN_URL,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },
   emptyStringAsUndefined: true,
   skipValidation: !!process.env["SKIP_ENV_VALIDATION"],
