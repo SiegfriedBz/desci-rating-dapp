@@ -17,7 +17,6 @@ Used by `inngest/functions/phase1-requested.ts` after minting the R-KA.
 ```
 evm/
   fulfill-phase1.ts   # read getRatingByUal → write fulfillPhase1
-  index.ts
   README.md
 ```
 
