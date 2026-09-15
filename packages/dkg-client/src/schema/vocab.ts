@@ -28,3 +28,13 @@ export const DEO_MATERIALS = "http://purl.org/spar/deo/Materials";
 export const DEO_RESULTS = "http://purl.org/spar/deo/Results";
 export const DEO_DATASET_DESCRIPTION =
   "http://purl.org/spar/deo/DatasetDescription";
+
+/**
+ * Project namespace for terms with no schema.org equivalent.
+ * Minted assertions are immutable, so these IRIs are frozen once published.
+ */
+export const DESCI_NS = "https://verisci.dev/ns/desci#";
+/** One rigor signal the scorer found in the paper. Repeatable. */
+export const DESCI_OBSERVED_EVIDENCE = `${DESCI_NS}observedEvidence`;
+/** One rigor signal the scorer expected and did not find. Repeatable. */
+export const DESCI_MISSING_EVIDENCE = `${DESCI_NS}missingEvidence`;

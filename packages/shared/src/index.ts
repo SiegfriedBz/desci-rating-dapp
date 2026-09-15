@@ -51,6 +51,10 @@ export type PublishRatingParams = {
   author: string;
   /** Phase-1 verdict prose stored as schema:description on the R-KA. */
   description: string;
+  /** Rigor signals found, one `desci:observedEvidence` literal each. */
+  observed?: readonly string[];
+  /** Rigor signals expected but absent, one `desci:missingEvidence` literal each. */
+  missing?: readonly string[];
   /** Named KA within the context graph; defaults to a unique `desci-rating-*` id. */
   name?: string;
 };
