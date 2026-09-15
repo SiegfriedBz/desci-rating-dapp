@@ -32,6 +32,7 @@ Library entry (`index.ts`) re-exports `createDkgClient`, publication/rating KA h
 
 - `types.ts` — `PublicationMetadata`, publication/rating params and results, `PublishAssertionDeps`, `TargetAssetBinding`, `RatingBinding`
 - `vocab.ts` — schema.org, RDF, and DEO predicate/class IRIs used when building and querying quads
+- `ual.ts` — `parseUal` / `isUal`, the single strict definition of the `did:dkg:base:{chainId}/{kasAddress}/{tokenId}` grammar
 
 ### `src/helpers/`
 

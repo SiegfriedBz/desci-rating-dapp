@@ -1,6 +1,7 @@
 export type { PublishRatingParams, PublishRatingResult } from "@desci/shared";
 
 export type {
+  ParsedUal,
   PublicationAuthor,
   PublicationMetadata,
   PublicationResource,
@@ -16,6 +17,8 @@ export type {
 } from "./schema/index.js";
 
 export {
+  isUal,
+  parseUal,
   publicationWithRatingBindingSchema,
   DEO_DATASET_DESCRIPTION,
   DEO_MATERIALS,
