@@ -3,6 +3,9 @@ export {
   DEO_MATERIALS,
   DEO_METHODS,
   DEO_RESULTS,
+  DESCI_MISSING_EVIDENCE,
+  DESCI_NS,
+  DESCI_OBSERVED_EVIDENCE,
   RDF_TYPE,
   SCHEMA_ABOUT,
   SCHEMA_ADDITIONAL_TYPE,
@@ -29,9 +32,15 @@ export {
 
 export {
   publicationWithRatingBindingSchema,
+  ratingBindingSchema,
 } from "./types.js";
 
-export { isUal, parseUal, type ParsedUal } from "./ual.js";
+export {
+  isUal,
+  parseUal,
+  ualFromVerifiableMemoryGraphIri,
+  type ParsedUal,
+} from "./ual.js";
 
 export type {
   PublicationAuthor,

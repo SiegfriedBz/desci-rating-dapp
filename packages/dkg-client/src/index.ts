@@ -20,10 +20,15 @@ export {
   isUal,
   parseUal,
   publicationWithRatingBindingSchema,
+  ratingBindingSchema,
+  ualFromVerifiableMemoryGraphIri,
   DEO_DATASET_DESCRIPTION,
   DEO_MATERIALS,
   DEO_METHODS,
   DEO_RESULTS,
+  DESCI_MISSING_EVIDENCE,
+  DESCI_NS,
+  DESCI_OBSERVED_EVIDENCE,
   RDF_TYPE,
   SCHEMA_ADDITIONAL_TYPE,
   SCHEMA_AUTHOR,
@@ -55,13 +60,16 @@ export {
 
 export {
   buildRatingGraph,
+  parseLegacyEvidenceDescription,
   publishRatingKa,
   queryRatingsAbout,
+  type LegacyEvidenceDescription,
 } from "./rating-ka/index.js";
 
 export {
   createPublicationIdentity,
   createRatingIdentity,
+  literalLexicalForm,
   normalizeDoiIri,
   normalizeIpfsIri,
   normalizeOrcidIri,
