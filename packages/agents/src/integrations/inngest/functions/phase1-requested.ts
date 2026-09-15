@@ -4,10 +4,7 @@ import {
   type TargetAssetBinding,
 } from "@desci/dkg-client";
 import { env } from "@desci/env";
-import {
-  formatKaScoreDescription,
-  runKaScorerAgent,
-} from "../../../agents/ka-scorer/index.js";
+import { runKaScorerAgent } from "../../../agents/ka-scorer/index.js";
 import { fulfillPhase1OnChain } from "../../evm/fulfill-phase1.js";
 import { InngestEvent, inngest } from "../client.js";
 
@@ -55,7 +52,9 @@ export const phase1RequestedFunction = inngest.createFunction(
           targetUal,
           score: evaluation.score,
           author: PHASE_ONE_AUTHOR,
-          description: formatKaScoreDescription(evaluation),
+          description: evaluation.rationale.trim(),
+          observed: evaluation.observed,
+          missing: evaluation.missing,
         });
         return { rKaUal: result.ual, ratingSubject: result.ratingSubject };
       } finally {
