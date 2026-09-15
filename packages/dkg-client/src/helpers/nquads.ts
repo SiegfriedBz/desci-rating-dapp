@@ -17,3 +17,41 @@ export function nquadIntegerLiteral(value: number): string {
   }
   return `"${value}"^^${XSD_INTEGER}`;
 }
+
+const LITERAL_ESCAPES: Record<string, string> = {
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  '"': '"',
+  "'": "'",
+  "\\": "\\",
+};
+
+/**
+ * Inverse of {@link nquadStringLiteral}: unwrap a term the daemon returns as
+ * serialized N-Quads and undo the escapes.
+ *
+ *   `"40"^^<xsd:integer>` → `40`
+ *   `"line\nline"`        → `line` + newline + `line`
+ *
+ * IRIs and bare values pass through untouched.
+ */
+export function literalLexicalForm(raw: string): string {
+  const withDatatype = raw.match(/^"((?:\\.|[^"\\])*)"\^\^/);
+  if (withDatatype) {
+    return unescapeLiteral(withDatatype[1] ?? raw);
+  }
+  if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
+    return unescapeLiteral(raw.slice(1, -1));
+  }
+  return raw;
+}
+
+function unescapeLiteral(value: string): string {
+  if (!value.includes("\\")) {
+    return value;
+  }
+  return value.replace(/\\(.)/g, (match, char: string) => {
+    return LITERAL_ESCAPES[char] ?? match;
+  });
+}

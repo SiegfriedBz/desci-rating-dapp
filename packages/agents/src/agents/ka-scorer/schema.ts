@@ -8,25 +8,3 @@ export const kaScoreSchema = z.object({
 });
 
 export type KaScoreResult = z.infer<typeof kaScoreSchema>;
-
-/** Format a structured verdict into one schema:description literal for the R-KA. */
-export function formatKaScoreDescription(result: KaScoreResult): string {
-  const observed =
-    result.observed.length > 0
-      ? result.observed.map((item) => `- ${item}`).join("\n")
-      : "- (none)";
-  const missing =
-    result.missing.length > 0
-      ? result.missing.map((item) => `- ${item}`).join("\n")
-      : "- (none)";
-
-  return [
-    result.rationale.trim(),
-    "",
-    "Observed:",
-    observed,
-    "",
-    "Missing:",
-    missing,
-  ].join("\n");
-}

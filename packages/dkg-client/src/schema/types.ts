@@ -9,15 +9,31 @@ export type TargetAssetBinding = {
   object: string;
 };
 
-// TODO: migrate RatingBinding to a Zod schema
-//       (see publicationWithRatingBindingSchema for the pattern — separate chore)
 export type RatingBinding = {
+  /** Local RDF subject of the rating assertion (`urn:uuid:rating-*`). */
   ratingSubject: string;
+  /** On-chain R-KA UAL from the verifiable-memory graph IRI; null if underivable. */
+  rKaUal: string | null;
   ratingValue: string;
   author: string;
-  /** schema:description when present (older R-KAs may omit it). */
+  /** Raw schema:description literal; null on older R-KAs that omitted it. */
   description: string | null;
+  /** `description` minus the legacy Observed/Missing sections. */
+  rationale: string | null;
+  observed: string[];
+  missing: string[];
 };
+
+export const ratingBindingSchema: z.ZodType<RatingBinding> = z.object({
+  ratingSubject: z.string(),
+  rKaUal: z.string().nullable(),
+  ratingValue: z.string(),
+  author: z.string(),
+  description: z.string().nullable(),
+  rationale: z.string().nullable(),
+  observed: z.array(z.string()),
+  missing: z.array(z.string()),
+});
 
 /**
  * Plain type (not `z.infer`) so consumers resolve it without needing `zod`

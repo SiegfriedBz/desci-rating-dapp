@@ -10,6 +10,5 @@ export {
 export {
   runKaScorerAgent,
   kaScoreSchema,
-  formatKaScoreDescription,
   type KaScoreResult,
 } from "./agents/ka-scorer/index.js";

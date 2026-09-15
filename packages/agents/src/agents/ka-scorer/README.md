@@ -7,7 +7,7 @@ Agent: score a published Target Knowledge Asset for scientific rigor (Phase-1).
 1. Input: RDF bindings (`TargetAssetBinding[]`) from the Target KA
 2. Format triples for the prompt (drops platform PDF `schema:encoding` / `MediaObject` triples)
 3. Gemini structured output → `{ score, rationale, observed[], missing[] }`
-4. Caller (Inngest `phase1-requested`) mints an R-KA with `schema:description` and fulfills on-chain
+4. Caller (Inngest `phase1-requested`) mints an R-KA — `rationale` as `schema:description`, `observed` / `missing` as repeated `desci:observedEvidence` / `desci:missingEvidence` — and fulfills on-chain
 
 ## Public entrypoints
 
@@ -15,7 +15,6 @@ Agent: score a published Target Knowledge Asset for scientific rigor (Phase-1).
 |--------|------|
 | `runKaScorerAgent(bindings)` | Score + structured verdict (`agent.ts`) |
 | `kaScoreSchema` / `KaScoreResult` | Zod contract |
-| `formatKaScoreDescription(result)` | Rationale + observed/missing → one `schema:description` string |
 
 Import via `@desci/agents` or `@desci/agents/ka-scorer`.
 
@@ -24,7 +23,7 @@ Import via `@desci/agents` or `@desci/agents/ka-scorer`.
 ```
 ka-scorer/
   agent.ts           # runKaScorerAgent
-  schema.ts          # kaScoreSchema + formatKaScoreDescription
+  schema.ts          # kaScoreSchema
   format-triples.ts  # serialize + drop encoding triples
   prompts.ts
   gateway.ts

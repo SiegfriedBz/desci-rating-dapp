@@ -36,3 +36,18 @@ export function sparqlTermValue(term: unknown): string {
   }
   return String(term);
 }
+
+/**
+ * Read one binding from a SPARQL row, collapsing unbound and empty to null.
+ * Unbound is normal — every `OPTIONAL` produces rows missing the variable.
+ */
+export function sparqlTermOrNull(
+  row: Record<string, string>,
+  key: string
+): string | null {
+  const raw = row[key];
+  if (raw == null || raw === "") {
+    return null;
+  }
+  return sparqlTermValue(raw) || null;
+}

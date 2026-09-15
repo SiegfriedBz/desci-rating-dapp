@@ -55,7 +55,7 @@ See [src/agents/pdf-to-ka/README.md](src/agents/pdf-to-ka/README.md).
 See [src/agents/ka-scorer/README.md](src/agents/ka-scorer/README.md).
 
 - `agent.ts` — `runKaScorerAgent(bindings)`
-- `schema.ts` — `{ score, rationale, observed, missing }` + `formatKaScoreDescription`
+- `schema.ts` — `kaScoreSchema` / `KaScoreResult`: `{ score, rationale, observed, missing }`
 
 ### `src/ipfs/`
 

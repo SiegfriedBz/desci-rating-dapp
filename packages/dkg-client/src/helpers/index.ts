@@ -1,4 +1,5 @@
 export {
+  literalLexicalForm,
   nquadIntegerLiteral,
   nquadStringLiteral,
 } from "./nquads.js";
@@ -11,6 +12,7 @@ export {
 export {
   assertSparqlIri,
   sparqlIri,
+  sparqlTermOrNull,
   sparqlTermValue,
 } from "./sparql.js";
 export {

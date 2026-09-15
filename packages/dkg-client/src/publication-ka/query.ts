@@ -1,9 +1,11 @@
-import { BASE_SEPOLIA_CHAIN_ID, type SparqlBindings } from "@desci/shared";
-import { sparqlIri, sparqlTermValue } from "../helpers/sparql.js";
+import type { SparqlBindings } from "@desci/shared";
+import { literalLexicalForm } from "../helpers/nquads.js";
+import { sparqlIri, sparqlTermOrNull } from "../helpers/sparql.js";
 import {
   publicationWithRatingBindingSchema,
   type PublicationWithRatingBinding,
 } from "../schema/types.js";
+import { ualFromVerifiableMemoryGraphIri } from "../schema/ual.js";
 import {
   RDF_TYPE,
   SCHEMA_ABOUT,
@@ -24,57 +26,6 @@ export type SparqlQueryFn = (
   contextGraphId: string,
   options?: SparqlQueryOptions
 ) => Promise<{ bindings: SparqlBindings }>;
-
-function term(row: SparqlBindings[number], key: string): string | null {
-  const raw = row[key];
-  if (raw == null || raw === "") {
-    return null;
-  }
-  const value = sparqlTermValue(raw);
-  return value || null;
-}
-
-/**
- * Strip SPARQL / N-Quads literal wrappers: `"40"^^<xsd:integer>` → `40`.
- */
-function literalLexicalForm(raw: string): string {
-  const withDatatype = raw.match(/^"((?:\\.|[^"\\])*)"\^\^/);
-  if (withDatatype) {
-    return withDatatype[1] ?? raw;
-  }
-  if (raw.startsWith('"') && raw.endsWith('"') && raw.length >= 2) {
-    return raw.slice(1, -1);
-  }
-  return raw;
-}
-
-/**
- * Derive on-chain UAL from a VM named-graph IRI.
- *
- * Observed DKG V10 shape:
- *   did:dkg:context-graph:{cg}/_verifiable_memory/{kasAddress}/{tokenId}
- * → did:dkg:base:{chainId}/{kasAddress}/{tokenId}
- */
-export function ualFromVerifiableMemoryGraphIri(
-  graphIri: string,
-  chainId: number = BASE_SEPOLIA_CHAIN_ID
-): { ual: string; tokenId: number } | null {
-  const match = graphIri
-    .trim()
-    .match(/\/_verifiable_memory\/(0x[0-9a-fA-F]+)\/(\d+)\s*$/);
-  if (!match) {
-    return null;
-  }
-  const address = match[1]!.toLowerCase();
-  const tokenId = Number.parseInt(match[2]!, 10);
-  if (!Number.isFinite(tokenId)) {
-    return null;
-  }
-  return {
-    ual: `did:dkg:base:${chainId}/${address}/${tokenId}`,
-    tokenId,
-  };
-}
 
 /**
  * List ScholarlyArticle publications with resolved KA UALs and optional ratings.
@@ -125,9 +76,9 @@ export async function queryPublicationsWithRatings(
   const ratingUals = new Set<string>();
 
   for (const row of ratingRows) {
-    const graphIri = term(row, "g");
-    const aboutIri = term(row, "about");
-    const ratingValueRaw = term(row, "ratingValue");
+    const graphIri = sparqlTermOrNull(row, "g");
+    const aboutIri = sparqlTermOrNull(row, "about");
+    const ratingValueRaw = sparqlTermOrNull(row, "ratingValue");
     if (!graphIri || !aboutIri || !ratingValueRaw) {
       continue;
     }
@@ -151,8 +102,8 @@ export async function queryPublicationsWithRatings(
   const byUal = new Map<string, PublicationWithRatingBinding>();
 
   for (const row of pubRows) {
-    const graphIri = term(row, "g");
-    const subjectUri = term(row, "subjectUri");
+    const graphIri = sparqlTermOrNull(row, "g");
+    const subjectUri = sparqlTermOrNull(row, "subjectUri");
     if (!graphIri || !subjectUri) {
       continue;
     }
@@ -165,7 +116,7 @@ export async function queryPublicationsWithRatings(
       continue;
     }
 
-    const titleRaw = term(row, "title");
+    const titleRaw = sparqlTermOrNull(row, "title");
     const title = titleRaw ? literalLexicalForm(titleRaw) : null;
     const rating = ratingsByAbout.get(parsed.ual) ?? null;
 

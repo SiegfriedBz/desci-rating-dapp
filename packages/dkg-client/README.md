@@ -30,17 +30,17 @@ Library entry (`index.ts`) re-exports `createDkgClient`, publication/rating KA h
 
 ### `src/schema/`
 
-- `types.ts` — `PublicationMetadata`, publication/rating params and results, `PublishAssertionDeps`, `TargetAssetBinding`, `RatingBinding`
-- `vocab.ts` — schema.org, RDF, and DEO predicate/class IRIs used when building and querying quads
-- `ual.ts` — `parseUal` / `isUal`, the single strict definition of the `did:dkg:base:{chainId}/{kasAddress}/{tokenId}` grammar
+- `types.ts` — `PublicationMetadata`, publication/rating params and results, `PublishAssertionDeps`, `TargetAssetBinding`, `RatingBinding` (+ `ratingBindingSchema`)
+- `vocab.ts` — schema.org, RDF, and DEO predicate/class IRIs used when building and querying quads, plus the project's own `desci:` terms (`DESCI_OBSERVED_EVIDENCE`, `DESCI_MISSING_EVIDENCE`) for the rigor signals schema.org has no predicate for
+- `ual.ts` — `parseUal` / `isUal`, the single strict definition of the `did:dkg:base:{chainId}/{kasAddress}/{tokenId}` grammar, and `ualFromVerifiableMemoryGraphIri` which recovers that UAL from a SPARQL `GRAPH` IRI
 
 ### `src/helpers/`
 
 Shared utilities (no daemon I/O):
 
-- `nquads.ts` — string and xsd:integer N-Quad object literals
+- `nquads.ts` — string and xsd:integer N-Quad object literals, plus `literalLexicalForm`, their inverse for reading query results (`"40"^^<xsd:integer>` → `40`, escapes undone)
 - `iris.ts` — `normalizeDoiIri`, `normalizeIpfsIri` (CID or `ipfs://CID` → `ipfs://…`), `normalizeOrcidIri`, `scicrunchResolverIri`
-- `sparql.ts` — IRI wrapping / injection checks and SPARQL JSON term unwrapping
+- `sparql.ts` — IRI wrapping / injection checks, SPARQL JSON term unwrapping, and `sparqlTermOrNull` for reading one binding out of a row
 - `identity.ts` — `createPublicationIdentity` (`desci-pub-*` / `urn:uuid:pub-*`), `createRatingIdentity` (`desci-rating-*` / `urn:uuid:rating-*`)
 
 ### `src/publication-ka/`
@@ -53,9 +53,10 @@ Mint a publication Target KA: `buildPublicationGraph` (`graph.ts`) from `Publica
 
 Mint and read rating KAs (R-KA):
 
-- `graph.ts` — `schema:about`, `schema:ratingValue`, `schema:author`, `schema:description`
+- `graph.ts` — `buildRatingGraph`. Four schema.org quads (`schema:about`, `schema:ratingValue`, `schema:author`, `schema:description`) plus one repeated `desci:observedEvidence` / `desci:missingEvidence` quad per evidence item. The schema.org four are the stable contract; `queryPublicationsWithRatings` keys the catalog off `schema:about` + `schema:ratingValue`.
 - `publish.ts` — `publishRatingKa`
-- `query.ts` — `queryRatingsAbout` (SPARQL “Action B”: ratings that `schema:about` a target UAL; `description` is optional for older R-KAs)
+- `query.ts` — `queryRatingsAbout` (SPARQL “Action B”: ratings that `schema:about` a target UAL). Two queries joined in JS rather than one `SELECT` with two repeated-literal `OPTIONAL`s, which would return the cross product of the two evidence lists. The core query wraps its pattern in `GRAPH ?g` so each row carries `rKaUal` — the identity the contract records and the detail pages route on; the local `ratingSubject` cannot be routed on. Bindings: `ratingSubject`, `rKaUal`, `ratingValue`, `author`, `description`, `rationale`, `observed`, `missing`.
+- `legacy-description.ts` — `parseLegacyEvidenceDescription`. R-KAs minted before the `desci:` terms existed flattened the verdict into one prose `schema:description`; `queryRatingsAbout` recovers evidence from it so no caller has to branch on format. Deliberately strict about the exact trailing `Observed:` / `Missing:` bullet structure, so a genuine rationale that merely opens a line with `Observed:` is left alone.
 
 ### `src/daemon/`
 

@@ -35,6 +35,8 @@ export async function publishRatingKa(
     score: params.score,
     author,
     description,
+    observed: params.observed,
+    missing: params.missing,
   });
 
   const { ual } = await deps.publishAssertion(contextGraphId, name, quads);

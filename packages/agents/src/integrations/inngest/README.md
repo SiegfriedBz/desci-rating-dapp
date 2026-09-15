@@ -26,6 +26,8 @@ Import via `@desci/agents/inngest`. Functions are registered in `apps/web/src/ap
 
 `phase1-requested` steps: `fetch-target-ka` → `run-ka-scorer-agent` → `mint-r-ka` → `fulfill-on-chain`. It rethrows `TargetAssetNotIndexedError` so Inngest retries through DKG indexing lag, and `fulfillPhase1OnChain` returns `already_fulfilled` without a tx when the record is already `Phase1Completed`.
 
+`mint-r-ka` passes the scorer's verdict to `publishRating` as structured fields: `rationale` becomes `schema:description`, and `observed` / `missing` become repeated `desci:observedEvidence` / `desci:missingEvidence` literals. The step keeps returning `{ rKaUal, ratingSubject }` because `fulfill-on-chain` reads `minted.rKaUal`.
+
 `publish-pdf` steps: `fetch-pdf` (bytes returned base64-encoded so they survive Inngest's JSON step boundary) → `run-pdf-to-ka-agent`.
 
 Both DKG functions read `env.DKG_CONTEXT_GRAPH_ID`, which `@desci/env` requires.
