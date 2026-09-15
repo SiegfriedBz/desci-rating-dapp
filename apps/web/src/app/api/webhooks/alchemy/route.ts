@@ -8,12 +8,11 @@ import {
   processRatingControllerEvent,
 } from "@desci/agents/inngest";
 import { env } from "@desci/env";
+import { BASE_SEPOLIA_CHAIN_ID } from "@desci/shared";
 import { NextResponse } from "next/server";
 import { decodeEventLog, getAddress, type Hex } from "viem";
 
 export const runtime = "nodejs";
-
-const BASE_SEPOLIA_CHAIN_ID = 84532;
 
 type AlchemyLog = {
   account?: { address?: string };
@@ -71,17 +70,13 @@ function resolveLogAddress(log: AlchemyLog): `0x${string}` | null {
 
 export async function POST(request: Request) {
   try {
-    const secret = env.ALCHEMY_BASE_SEPOLIA_WH_SK;
-    if (!secret) {
-      return NextResponse.json(
-        { error: "ALCHEMY_BASE_SEPOLIA_WH_SK is not configured" },
-        { status: 500 }
-      );
-    }
-
     const rawBody = await request.text();
     const signature = request.headers.get("x-alchemy-signature");
-    const sigOk = verifyAlchemySignature(rawBody, signature, secret);
+    const sigOk = verifyAlchemySignature(
+      rawBody,
+      signature,
+      env.ALCHEMY_BASE_SEPOLIA_WH_SK
+    );
 
     if (!sigOk) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });

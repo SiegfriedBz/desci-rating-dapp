@@ -1,14 +1,10 @@
-import { ipfsGatewayUrl } from "@desci/env";
+import { env } from "@desci/env";
 import { bareCid } from "./uri.js";
 
-/**
- * Fetch PDF bytes from the configured IPFS HTTP gateway (`ipfsGatewayUrl`
- * from `@desci/env` — `IPFS_GATEWAY_URL` or Pinata public gateway default).
- */
+/** Fetch PDF bytes from the configured IPFS HTTP gateway. */
 export async function fetchPdfByCid(cid: string): Promise<Uint8Array> {
-  const base = ipfsGatewayUrl.replace(/\/$/, "");
   const path = bareCid(cid);
-  const url = `${base}/${path}`;
+  const url = `${env.IPFS_GATEWAY_URL}/${path}`;
 
   let response: Response;
   try {

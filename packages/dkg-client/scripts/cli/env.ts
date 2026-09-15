@@ -1,4 +1,4 @@
-import { env, requireEnv as requireEnvValue } from "@desci/env";
+import { env } from "@desci/env";
 
 /** Env keys whose catalogued values are strings (not coerced numbers). */
 type StringEnvKey = {
@@ -6,12 +6,6 @@ type StringEnvKey = {
     ? K
     : never;
 }[keyof typeof env];
-
-/** Read a required catalogued string env value. */
-export function requireEnv(name: StringEnvKey, hint?: string): string {
-  const suffix = hint ? ` ${hint}` : "";
-  return requireEnvValue(env[name], `Missing ${name}.${suffix}`);
-}
 
 /** Prefer argv[index], else the catalogued env value. */
 export function argOrEnv(

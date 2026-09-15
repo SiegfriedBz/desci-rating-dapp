@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { geminiModel } from "@desci/env";
+import { env } from "@desci/env";
 import type { KnowledgeAssetQuad } from "@desci/shared";
 import {
   normalizeDoiIri,
@@ -48,7 +48,7 @@ const SECTION_KIND_TO_DEO: Record<PublicationSectionKind, string> = {
 };
 
 function defaultCreator(): string {
-  return `grobid/grobid:0.8.2 + ${geminiModel}`;
+  return `grobid/grobid:0.8.2 + ${env.GEMINI_MODEL}`;
 }
 
 /**

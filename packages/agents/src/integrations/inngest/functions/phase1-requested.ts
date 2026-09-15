@@ -3,7 +3,7 @@ import {
   TargetAssetNotIndexedError,
   type TargetAssetBinding,
 } from "@desci/dkg-client";
-import { env, requireDkgContextGraphId } from "@desci/env";
+import { env } from "@desci/env";
 import {
   formatKaScoreDescription,
   runKaScorerAgent,
@@ -33,7 +33,7 @@ export const phase1RequestedFunction = inngest.createFunction(
   { event: InngestEvent.Phase1Requested },
   async ({ event, step }) => {
     const { targetUal, requestId, chainId } = event.data;
-    const contextGraphId = requireDkgContextGraphId("Phase-1 DKG steps");
+    const contextGraphId = env.DKG_CONTEXT_GRAPH_ID;
 
     const bindings = await step.run("fetch-target-ka", async () => {
       const client = await createDkgClient();

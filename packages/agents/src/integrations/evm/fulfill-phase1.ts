@@ -2,7 +2,7 @@ import {
   getRatingControllerAddress,
   ratingControllerAbi,
 } from "@desci/contracts";
-import { env, requireEnv } from "@desci/env";
+import { env } from "@desci/env";
 import {
   createPublicClient,
   createWalletClient,
@@ -20,25 +20,6 @@ export type FulfillPhase1Result =
   | { status: "already_fulfilled"; txHash: null }
   | { status: "fulfilled"; txHash: Hex };
 
-function requireOraclePrivateKey(): Hex {
-  const key = requireEnv(
-    env.ORACLE_AGENT_PRIVATE_KEY,
-    "ORACLE_AGENT_PRIVATE_KEY is required for on-chain fulfill"
-  );
-  const normalized = key.startsWith("0x") ? key : `0x${key}`;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
-    throw new Error("ORACLE_AGENT_PRIVATE_KEY must be a 32-byte hex private key");
-  }
-  return normalized as Hex;
-}
-
-function requireRpcUrl(): string {
-  return requireEnv(
-    env.BASE_SEPOLIA_RPC_URL,
-    "BASE_SEPOLIA_RPC_URL is required for on-chain fulfill"
-  );
-}
-
 /**
  * Submit RatingController.fulfillPhase1 with idempotency guard via getRatingByUal.
  */
@@ -50,12 +31,11 @@ export async function fulfillPhase1OnChain(input: {
 }): Promise<FulfillPhase1Result> {
   const chainId = input.chainId ?? baseSepolia.id;
   const address = getRatingControllerAddress(chainId);
-  const rpcUrl = requireRpcUrl();
-  const account = privateKeyToAccount(requireOraclePrivateKey());
+  const account = privateKeyToAccount(env.ORACLE_AGENT_PRIVATE_KEY);
 
   const publicClient = createPublicClient({
     chain: baseSepolia,
-    transport: http(rpcUrl),
+    transport: http(env.BASE_SEPOLIA_RPC_URL),
   });
 
   const record = await publicClient.readContract({
@@ -92,7 +72,7 @@ export async function fulfillPhase1OnChain(input: {
   const walletClient = createWalletClient({
     account,
     chain: baseSepolia,
-    transport: http(rpcUrl),
+    transport: http(env.BASE_SEPOLIA_RPC_URL),
   });
 
   const hash = await walletClient.writeContract({

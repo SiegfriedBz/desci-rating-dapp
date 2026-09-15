@@ -1,6 +1,6 @@
 import "server-only";
 
-import { env, requireEnv } from "@desci/env";
+import { env } from "@desci/env";
 import { createPublicClient, http, type PublicClient } from "viem";
 import { baseSepolia } from "viem/chains";
 
@@ -17,12 +17,7 @@ export function getEvmClient(): EvmClient {
   if (!cached) {
     cached = createPublicClient({
       chain: baseSepolia,
-      transport: http(
-        requireEnv(
-          env.BASE_SEPOLIA_RPC_URL,
-          "BASE_SEPOLIA_RPC_URL is required for on-chain reads"
-        )
-      ),
+      transport: http(env.BASE_SEPOLIA_RPC_URL),
     });
   }
   return cached;
