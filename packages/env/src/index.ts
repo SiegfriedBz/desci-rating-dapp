@@ -1,151 +1,83 @@
-import { createEnv } from "@t3-oss/env-core";
+import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
-/** Free-tier Gemini Flash Lite default used across agents / publication quads. */
-export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
-
-/** Default HTTP gateway for CID retrieval (Pinata public gateway). */
-export const DEFAULT_IPFS_GATEWAY_URL = "https://gateway.pinata.cloud/ipfs";
-
-/** Local GROBID Docker default (`pnpm grobid:up`). */
-export const DEFAULT_GROBID_URL = "http://127.0.0.1:8070";
-
-export const DEFAULT_GROBID_TIMEOUT_MS = 120_000;
-
-/** Fallback DKG daemon HTTP port when ~/.dkg/api.port is missing. */
-export const DEFAULT_DKG_API_PORT = "9200";
-
-/** Soft default context graph for CLI samples when env is unset. */
-export const DEFAULT_DKG_CONTEXT_GRAPH_ID = "verisci";
-
-export const DEFAULT_INNGEST_DEV_API_BASE_URL = "http://localhost:8288";
-
-export const DEFAULT_INNGEST_CLOUD_API_BASE_URL = "https://api.inngest.com";
+/** A URL with any trailing slash trimmed, so callers can append paths. */
+const baseUrl = () =>
+  z
+    .string()
+    .url()
+    .transform((value) => value.replace(/\/+$/, ""));
 
 /**
- * Server env catalog — secrets and server-only config.
- * For `NEXT_PUBLIC_*` use `@desci/env/client` instead (do not duplicate here).
+ * Server env. Required by default — a missing value throws on first import
+ * rather than failing later at the call site. Only variables with a real
+ * fallback are `.optional()`, and each says what the fallback is.
  */
 export const env = createEnv({
   server: {
-    // DKG daemon / scripts
-    DKG_API_URL: z.string().optional(),
-    DKG_API_PORT: z.string().optional(),
-    DKG_AUTH_TOKEN: z.string().optional(),
-    DKG_HOME: z.string().optional(),
-    DKG_CONTEXT_GRAPH_ID: z.string().optional(),
-    DKG_KA_NAME: z.string().optional(),
-    DKG_UAL: z.string().optional(),
-    DKG_SUBJECT_URI: z.string().optional(),
-    DKG_PDF_PATH: z.string().optional(),
+    // ── DKG ────────────────────────────────────────────────────────────
+    /** Context graph the catalog reads and the workers write to. */
+    DKG_CONTEXT_GRAPH_ID: z.string().min(1),
+    /** Daemon endpoint. Omit locally to resolve from `~/.dkg/api.port`. */
+    DKG_API_URL: baseUrl().optional(),
+    /** Bearer token. Omit locally to read `~/.dkg/auth.token`. */
+    DKG_AUTH_TOKEN: z.string().min(1).optional(),
+    /** Overrides the `~/.dkg` directory. */
+    DKG_HOME: z.string().min(1).optional(),
+    DKG_API_PORT: z.string().default("9200"),
 
-    // GROBID
-    GROBID_URL: z.string().optional(),
-    GROBID_TIMEOUT_MS: z.coerce.number().positive().optional(),
+    // Arguments for the `pnpm dkg:*` scripts; each also accepts argv.
+    DKG_KA_NAME: z.string().min(1).optional(),
+    DKG_UAL: z.string().min(1).optional(),
+    DKG_SUBJECT_URI: z.string().min(1).optional(),
+    DKG_PDF_PATH: z.string().min(1).optional(),
 
-    // Pinata pins PDFs; IPFS_GATEWAY_URL overrides the default Pinata gateway.
-    PINATA_JWT: z.string().optional(),
-    IPFS_GATEWAY_URL: z.string().url().optional(),
+    // ── GROBID ─────────────────────────────────────────────────────────
+    GROBID_URL: baseUrl().default("http://127.0.0.1:8070"),
+    GROBID_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
 
-    // Contracts / EVM (TS side; Foundry still reads PRIVATE_KEY / ORACLE_AGENT itself)
-    BASE_SEPOLIA_RPC_URL: z.string().url().optional(),
-    PRIVATE_KEY: z.string().optional(),
-    ORACLE_AGENT: z
+    // ── IPFS ───────────────────────────────────────────────────────────
+    PINATA_JWT: z.string().min(1),
+    IPFS_GATEWAY_URL: baseUrl().default("https://gateway.pinata.cloud/ipfs"),
+
+    // ── Base Sepolia ───────────────────────────────────────────────────
+    BASE_SEPOLIA_RPC_URL: z.string().url(),
+    /** Signer for `fulfillPhase1`; must match on-chain `oracleAgent()`. */
+    ORACLE_AGENT_PRIVATE_KEY: z
       .string()
-      .regex(/^0x[0-9a-fA-F]{40}$/, "expected 0x-prefixed address")
-      .optional(),
-    ORACLE_AGENT_PRIVATE_KEY: z.string().optional(),
-    ETHERSCAN_API_KEY: z.string().optional(),
+      .regex(/^(0x)?[0-9a-fA-F]{64}$/, "expected a 32-byte hex private key")
+      .transform((key) =>
+        key.startsWith("0x") ? (key as `0x${string}`) : (`0x${key}` as const)
+      ),
+    /** HMAC secret for `/api/webhooks/alchemy`. */
+    ALCHEMY_BASE_SEPOLIA_WH_SK: z.string().min(1),
 
-    // Alchemy webhook
-    ALCHEMY_BASE_SEPOLIA_WH_SK: z.string().optional(),
+    // ── Gemini ─────────────────────────────────────────────────────────
+    GOOGLE_API_KEY: z.string().min(1),
+    GEMINI_MODEL: z.string().min(1).default("gemini-3.5-flash-lite"),
 
-    // Gemini
-    GOOGLE_API_KEY: z.string().optional(),
-    GEMINI_API_KEY: z.string().optional(),
-    GEMINI_MODEL: z.string().optional(),
-
-    // Inngest
-    INNGEST_EVENT_KEY: z.string().optional(),
-    INNGEST_SIGNING_KEY: z.string().optional(),
-    /** Override Inngest REST API base (dev server or cloud). */
-    INNGEST_API_BASE_URL: z.string().url().optional(),
+    // ── Inngest ────────────────────────────────────────────────────────
+    /** Only needed against Inngest Cloud; the local Dev Server needs none. */
+    INNGEST_SIGNING_KEY: z.string().min(1).optional(),
+    /** Omit to use Inngest Cloud in production, the Dev Server otherwise. */
+    INNGEST_API_BASE_URL: baseUrl().optional(),
 
     /**
-     * Dev-only: skip the DKG `publishAssertion` write in the `mint-r-ka` step
-     * and substitute a synthetic R-KA UAL.
-     * Lets you test the full requestPhase1 → oracle → fulfillPhase1 flow
-     * without needing a healthy DKG write quorum.
-     * Set to `"true"` in `.env`; never enable in production.
+     * Dev-only: skip the DKG `publishAssertion` write in `mint-r-ka` and
+     * substitute a synthetic R-KA UAL, so the full
+     * requestPhase1 → oracle → fulfillPhase1 flow runs without a healthy DKG
+     * write quorum. Never enable in production.
      */
-    DEV_SKIP_DKG_MINT: z.string().optional(),
+    DEV_SKIP_DKG_MINT: z.enum(["true", "false"]).optional(),
   },
-  runtimeEnv: process.env,
+  experimental__runtimeEnv: process.env,
   emptyStringAsUndefined: true,
   skipValidation: !!process.env["SKIP_ENV_VALIDATION"],
 });
 
-/** Prefer GOOGLE_API_KEY; fall back to GEMINI_API_KEY alias. */
-export const geminiApiKey: string | undefined =
-  env.GOOGLE_API_KEY ?? env.GEMINI_API_KEY;
-
-/** Resolved Gemini model (env override or free-tier default). */
-export const geminiModel: string = env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
-
-/** Resolved IPFS HTTP gateway base (env override or Pinata public gateway). */
-export const ipfsGatewayUrl: string =
-  env.IPFS_GATEWAY_URL ?? DEFAULT_IPFS_GATEWAY_URL;
-
-/** Resolved GROBID base URL (no trailing slash). */
-export const grobidUrl: string = (
-  env.GROBID_URL ?? DEFAULT_GROBID_URL
-).replace(/\/$/, "");
-
-/** Resolved GROBID request timeout in ms. */
-export const grobidTimeoutMs: number =
-  env.GROBID_TIMEOUT_MS ?? DEFAULT_GROBID_TIMEOUT_MS;
-
-/** Resolved default DKG API port when no port file / DKG_API_URL is present. */
-export const dkgApiPort: string = env.DKG_API_PORT ?? DEFAULT_DKG_API_PORT;
-
-/**
- * Soft CLI default for context graph id. Production paths should use
- * {@link requireDkgContextGraphId} instead.
- */
-export const dkgContextGraphIdOrDefault: string =
-  env.DKG_CONTEXT_GRAPH_ID ?? DEFAULT_DKG_CONTEXT_GRAPH_ID;
-
-/**
- * Inngest REST API base for event run polling.
- * Override with `INNGEST_API_BASE_URL`; otherwise cloud in production, local
- * Dev Server otherwise.
- */
-export const inngestApiBaseUrl: string = (
+/** Inngest REST base: explicit override, else cloud in prod, else Dev Server. */
+export const inngestApiBaseUrl: string =
   env.INNGEST_API_BASE_URL ??
   (process.env.NODE_ENV === "production"
-    ? DEFAULT_INNGEST_CLOUD_API_BASE_URL
-    : DEFAULT_INNGEST_DEV_API_BASE_URL)
-).replace(/\/$/, "");
-
-/**
- * Throw when a feature-specific env value is missing at use time.
- * Prefer this over required Zod schemas so unused entrypoints can import `env`.
- * Use only for secrets / required IDs that have no default.
- */
-export function requireEnv<T>(
-  value: T | undefined,
-  message: string
-): NonNullable<T> {
-  if (value === undefined || value === null || value === "") {
-    throw new Error(message);
-  }
-  return value as NonNullable<T>;
-}
-
-/** Require `DKG_CONTEXT_GRAPH_ID` for production DKG read/write paths. */
-export function requireDkgContextGraphId(purpose: string): string {
-  return requireEnv(
-    env.DKG_CONTEXT_GRAPH_ID,
-    `DKG_CONTEXT_GRAPH_ID is required for ${purpose}`
-  );
-}
+    ? "https://api.inngest.com"
+    : "http://localhost:8288");

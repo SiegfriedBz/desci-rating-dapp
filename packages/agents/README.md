@@ -26,7 +26,7 @@ Package scripts: `pnpm --filter @desci/agents build` (`tsc` → `dist/`) and `cl
 - **LLM**: LangChain `ChatGoogleGenerativeAI` + Zod structured output (`src/shared/llm/gemini.ts`). No LangGraph.
 - **Durable jobs**: Inngest under `src/integrations/` (Phase-1 RatingController + PDF→KA publish).
 
-Depends on `@desci/dkg-client` for daemon publish/query. Gemini: `GOOGLE_API_KEY` or `GEMINI_API_KEY`; optional `GEMINI_MODEL` (default `gemini-3.5-flash-lite`). Pin: `PINATA_JWT`. Fetch: `IPFS_GATEWAY_URL` (e.g. Pinata gateway). The KA stores `ipfs://…` on `schema:encoding` / `schema:contentUrl`.
+Depends on `@desci/dkg-client` for daemon publish/query. Gemini: `GOOGLE_API_KEY`; optional `GEMINI_MODEL` (default `gemini-3.5-flash-lite`). Pin: `PINATA_JWT`. Fetch: `IPFS_GATEWAY_URL` (e.g. Pinata gateway). The KA stores `ipfs://…` on `schema:encoding` / `schema:contentUrl`.
 
 ## Composition (CLI today)
 
@@ -63,7 +63,7 @@ See [src/ipfs/README.md](src/ipfs/README.md). Shared storage: `pinPdfToIpfs`, `f
 
 ### `src/shared/llm/`
 
-`gemini.ts` — `createStructuredGeminiModel`, `requireGeminiApiKey`, `resolveGeminiModel`.
+`gemini.ts` — `createStructuredGeminiModel`.
 
 ### `src/integrations/`
 
@@ -99,6 +99,6 @@ pnpm dkg:publish-pdf ./paper.pdf
 # or DKG_PDF_PATH=...
 ```
 
-Requires `PINATA_JWT`. Optional `DKG_CONTEXT_GRAPH_ID` (default `verisci`, from `DEFAULT_DKG_CONTEXT_GRAPH_ID` in `@desci/env`), `DKG_KA_NAME`. Sample PDF: `fixtures/asx-pub.pdf`.
+Requires `PINATA_JWT` and `DKG_CONTEXT_GRAPH_ID`. Optional `DKG_KA_NAME`. Sample PDF: `fixtures/asx-pub.pdf`.
 
 GROBID sidecar: repo-root `pnpm grobid:up` / `grobid:down` (`docker-compose.grobid.yml`, CPU-only `grobid/grobid:0.8.2-crf`). Ready when `curl -s http://127.0.0.1:8070/api/isalive` returns `true`.

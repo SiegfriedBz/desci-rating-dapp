@@ -1,4 +1,4 @@
-import { requireDkgContextGraphId } from "@desci/env";
+import { env } from "@desci/env";
 import { runPdfToKaAgent } from "../../../agents/pdf-to-ka/index.js";
 import { fetchPdfByCid } from "../../../ipfs/index.js";
 import { InngestEvent, inngest } from "../client.js";
@@ -20,12 +20,11 @@ export const publishPdfFunction = inngest.createFunction(
     });
 
     const result = await step.run("run-pdf-to-ka-agent", async () => {
-      const contextGraphId = requireDkgContextGraphId("PDF → KA publishing");
       const pdfBytes = new Uint8Array(Buffer.from(pdf, "base64"));
       return runPdfToKaAgent({
         pdf: pdfBytes,
         pdfCid,
-        contextGraphId,
+        contextGraphId: env.DKG_CONTEXT_GRAPH_ID,
         filename,
       });
     });

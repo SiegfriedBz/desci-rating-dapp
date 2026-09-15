@@ -76,4 +76,13 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Async so the env catalog is validated here, before compilation, instead of
+ * surfacing mid-prerender. Imported dynamically because the schema must see the
+ * values `loadMonorepoRootEnv` merged in above.
+ */
+export default async function config(): Promise<NextConfig> {
+  await import("@desci/env");
+  await import("@desci/env/client");
+  return nextConfig;
+}

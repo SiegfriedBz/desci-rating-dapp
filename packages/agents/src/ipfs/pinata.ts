@@ -1,4 +1,4 @@
-import { env, requireEnv } from "@desci/env";
+import { env } from "@desci/env";
 import { ipfsUriForCid } from "./uri.js";
 
 const PINATA_PIN_URL = "https://api.pinata.cloud/pinning/pinFileToIPFS";
@@ -19,10 +19,6 @@ export async function pinPdfToIpfs(
   pdf: Uint8Array,
   filename = "paper.pdf"
 ): Promise<PinPdfResult> {
-  const jwt = requireEnv(
-    env.PINATA_JWT,
-    "PINATA_JWT is required to pin the PDF to IPFS. Set it in the repo-root .env"
-  );
   const form = new FormData();
   form.append(
     "file",
@@ -35,7 +31,7 @@ export async function pinPdfToIpfs(
     response = await fetch(PINATA_PIN_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${jwt}`,
+        Authorization: `Bearer ${env.PINATA_JWT}`,
       },
       body: form,
     });

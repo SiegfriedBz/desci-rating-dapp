@@ -1,28 +1,12 @@
-import { geminiApiKey, geminiModel, requireEnv } from "@desci/env";
+import { env } from "@desci/env";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import type { z } from "zod";
 
-export { DEFAULT_GEMINI_MODEL, geminiModel } from "@desci/env";
-
-export function requireGeminiApiKey(purpose: string): string {
-  return requireEnv(
-    geminiApiKey,
-    `GOOGLE_API_KEY (or GEMINI_API_KEY) is required for ${purpose}`
-  );
-}
-
-export function resolveGeminiModel(): string {
-  return geminiModel;
-}
-
 /** ChatGoogleGenerativeAI with structured Zod output (temperature 0). */
-export function createStructuredGeminiModel<T extends z.ZodType>(
-  schema: T,
-  purpose: string
-) {
+export function createStructuredGeminiModel<T extends z.ZodType>(schema: T) {
   return new ChatGoogleGenerativeAI({
-    model: resolveGeminiModel(),
+    model: env.GEMINI_MODEL,
     temperature: 0,
-    apiKey: requireGeminiApiKey(purpose),
+    apiKey: env.GOOGLE_API_KEY,
   }).withStructuredOutput(schema);
 }

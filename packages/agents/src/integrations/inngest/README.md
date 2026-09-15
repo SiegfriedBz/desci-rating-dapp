@@ -28,7 +28,7 @@ Import via `@desci/agents/inngest`. Functions are registered in `apps/web/src/ap
 
 `publish-pdf` steps: `fetch-pdf` (bytes returned base64-encoded so they survive Inngest's JSON step boundary) → `run-pdf-to-ka-agent`.
 
-Both DKG functions resolve the context graph through `requireDkgContextGraphId`, so `DKG_CONTEXT_GRAPH_ID` must be set.
+Both DKG functions read `env.DKG_CONTEXT_GRAPH_ID`, which `@desci/env` requires.
 
 ## Dev-only flag
 
@@ -53,4 +53,4 @@ inngest/
 
 Repo root: `pnpm inngest:dev` → Dev Server talks to `http://localhost:3000/api/inngest`.
 
-Env (via `@desci/env`): `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, optional `INNGEST_API_BASE_URL`. Phase-1 also needs DKG + oracle EVM vars (see [`../evm/README.md`](../evm/README.md)). Publish-PDF needs Pinata/gateway + `DKG_CONTEXT_GRAPH_ID` + Gemini/GROBID as for pdf-to-ka.
+Env: `INNGEST_SIGNING_KEY` and optional `INNGEST_API_BASE_URL` via `@desci/env`; `INNGEST_EVENT_KEY` is read by the Inngest SDK from `process.env` (not declared in the catalog). Phase-1 also needs DKG + oracle EVM vars (see [`../evm/README.md`](../evm/README.md)). Publish-PDF needs Pinata/gateway + `DKG_CONTEXT_GRAPH_ID` + Gemini/GROBID as for pdf-to-ka.

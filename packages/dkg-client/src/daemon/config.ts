@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { dkgApiPort, env } from "@desci/env";
+import { env } from "@desci/env";
 import type { DaemonConnectConfig } from "./types.js";
 
 function resolveDkgHome(): string {
@@ -65,5 +65,5 @@ export async function resolveApiBaseUrl(
     }
   }
 
-  return `http://127.0.0.1:${dkgApiPort}`;
+  return `http://127.0.0.1:${env.DKG_API_PORT}`;
 }

@@ -5,15 +5,10 @@ import {
 import { env } from "@desci/env";
 import { argOrEnv } from "./cli/env.js";
 import { runMain } from "./cli/run.js";
-import {
-  resolveSampleContextGraphId,
-  resolveSampleKaName,
-} from "./cli/sample.js";
+import { resolveSampleKaName } from "./cli/sample.js";
 
 async function main(): Promise<void> {
-  const contextGraphId = resolveSampleContextGraphId(
-    argOrEnv(3, "DKG_CONTEXT_GRAPH_ID")
-  );
+  const contextGraphId = process.argv[3]?.trim() || env.DKG_CONTEXT_GRAPH_ID;
   const envUal = argOrEnv(2, "DKG_UAL");
   const kaName = resolveSampleKaName({
     kaName: env.DKG_KA_NAME,

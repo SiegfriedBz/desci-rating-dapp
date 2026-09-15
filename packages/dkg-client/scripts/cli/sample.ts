@@ -1,8 +1,5 @@
 /** Shared defaults for `dkg:publish-sample` / `dkg:fetch-asset` so they stay in sync. */
 
-import { DEFAULT_DKG_CONTEXT_GRAPH_ID } from "@desci/env";
-
-export const DEFAULT_SAMPLE_CONTEXT_GRAPH_ID = DEFAULT_DKG_CONTEXT_GRAPH_ID;
 export const DEFAULT_SAMPLE_KA_NAME = "desci-sample-10";
 
 export function sampleSubjectUri(kaName: string): string {
@@ -34,10 +31,4 @@ export function resolveSampleKaName(options: {
   }
 
   return undefined;
-}
-
-export function resolveSampleContextGraphId(
-  fromArgOrEnv?: string
-): string {
-  return fromArgOrEnv?.trim() || DEFAULT_SAMPLE_CONTEXT_GRAPH_ID;
 }

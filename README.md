@@ -170,7 +170,7 @@ apps/web                 Next.js 16 dapp — landing, catalog, publish modal, /r
 packages/agents          pdf-to-ka, ka-scorer, IPFS helpers, Inngest/EVM integrations
 packages/dkg-client      DKG V10 daemon client + publication/rating KA builders
 packages/contracts       Foundry — RatingController.sol + generated TS ABI/address
-packages/env             Typed env catalog (@t3-oss/env-core + Zod)
+packages/env             Typed env catalog (@t3-oss/env-nextjs + Zod)
 packages/shared          Chain constants + shared types
 ```
 
@@ -334,7 +334,7 @@ for k in ['phase','authorityState','accessPolicy','publishPolicy','stableReason'
 
 Set the project **Root Directory** to `apps/web` with "include files outside this directory" enabled, Framework Preset **Next.js**, and leave **Output Directory** empty. [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and builds with `pnpm turbo run build --filter=web`.
 
-Production branch is `main`. Required production environment:
+Production branch is `main`. Scope these to **Preview as well as Production** — the build validates the catalog, so a Preview deployment missing them fails instead of rendering an empty catalog:
 
 - `DKG_API_URL` + `DKG_AUTH_TOKEN` pointing at the hosted node, and the full `DKG_CONTEXT_GRAPH_ID`
 - `GROBID_URL` including the secret path prefix
@@ -350,7 +350,7 @@ Production branch is `main`. Required production environment:
 ### 4 — Wire the external services
 
 - **Inngest Cloud** — sync the app so `/api/inngest` registers all five functions.
-- **Alchemy Notify** — watch the `RatingController` address on Base Sepolia and POST to `/api/webhooks/alchemy`. The route returns 500 without `ALCHEMY_BASE_SEPOLIA_WH_SK`.
+- **Alchemy Notify** — watch the `RatingController` address on Base Sepolia and POST to `/api/webhooks/alchemy`.
 - **Reown** — add the deployed origin to Allowed Origins in [Reown Cloud](https://dashboard.reown.com), matching `NEXT_PUBLIC_APP_URL`.
 
 ---
@@ -359,31 +359,35 @@ Production branch is `main`. Required production environment:
 
 All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example). `apps/web/next.config.ts` merges that file into `process.env` at config load (existing process env wins) — do not create `apps/web/.env.local` as a second source of truth. **Never commit `.env`.**
 
-Every variable is declared **optional** in `@desci/env` so builds never fail on a missing key; feature boundaries call `requireEnv` / `requireDkgContextGraphId` and throw at use time instead.
+`@desci/env` validates with `@t3-oss/env-nextjs`, and variables are **required by default**: a missing or malformed value throws the moment the catalog is imported. `apps/web/next.config.ts` imports both entries, so `next build` fails up front rather than serving a half-configured app. A variable is only optional when there is a real fallback — a Zod `.default()`, or a `~/.dkg` lookup — and the table below names that fallback.
 
-| Variable | Purpose |
-|---|---|
-| `DKG_CONTEXT_GRAPH_ID` | Context graph id. Required by the Inngest workers and the web catalog |
-| `DKG_API_URL` / `DKG_API_PORT` / `DKG_AUTH_TOKEN` / `DKG_HOME` | Daemon location and auth. Defaults resolve from `~/.dkg` and port `9200` |
-| `DKG_KA_NAME` / `DKG_UAL` / `DKG_SUBJECT_URI` / `DKG_PDF_PATH` | CLI script overrides |
-| `GROBID_URL` | Default `http://127.0.0.1:8070`; in production, includes the secret path prefix |
-| `GROBID_TIMEOUT_MS` | Optional; default `120000` |
-| `PINATA_JWT` | Required for `pnpm dkg:publish-pdf` and the web Publish KA flow |
-| `IPFS_GATEWAY_URL` | Optional; defaults to the Pinata public gateway |
-| `GOOGLE_API_KEY` or `GEMINI_API_KEY` | `pdf-to-ka` + `ka-scorer` (`GOOGLE_API_KEY` wins) |
-| `GEMINI_MODEL` | Optional; default `gemini-3.5-flash-lite` |
-| `BASE_SEPOLIA_RPC_URL` | Deploy, `fulfillPhase1`, and all server-side contract reads |
-| `PRIVATE_KEY` | Foundry deployer / contract owner |
-| `ORACLE_AGENT` | Public address of the oracle, written to `oracleAgent` at deploy |
-| `ORACLE_AGENT_PRIVATE_KEY` | Viem signer for `fulfillPhase1` — must match on-chain `oracleAgent()`. Not the deployer key |
-| `ETHERSCAN_API_KEY` | `forge script --verify` |
-| `ALCHEMY_BASE_SEPOLIA_WH_SK` | HMAC secret for `/api/webhooks/alchemy`; the route returns 500 without it |
-| `INNGEST_EVENT_KEY` / `INNGEST_SIGNING_KEY` | Inngest Cloud; not needed for the local Dev Server |
-| `INNGEST_API_BASE_URL` | Optional REST base for publish-status polling. Defaults to `http://localhost:8288` in dev, `https://api.inngest.com` in production |
-| `DEV_SKIP_DKG_MINT` | **Development only.** Skips the DKG R-KA write and returns a synthetic UAL so `fulfillPhase1` can still complete |
-| `NEXT_PUBLIC_APP_URL` | Reown AppKit `metadata.url`. Falls back to `http://localhost:3000` |
-| `NEXT_PUBLIC_REOWN_PROJECT_ID` | Reown AppKit. Optional — without it the app builds and renders, but wallet connect is disabled |
-| `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` / `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | Optional footer links |
+`PRIVATE_KEY`, `ORACLE_AGENT`, and `ETHERSCAN_API_KEY` are Foundry-only. They stay in `.env` / `.env.example` but are deliberately absent from `@desci/env` so the app cannot read a deployer key. `INNGEST_EVENT_KEY` is likewise absent — the Inngest SDK reads it from `process.env` itself.
+
+| Variable | Required? | Purpose |
+|---|---|---|
+| `DKG_CONTEXT_GRAPH_ID` | yes | Context graph the Inngest workers write to and the web catalog reads |
+| `DKG_API_URL` / `DKG_AUTH_TOKEN` | no | Daemon endpoint and bearer token. Omit locally to resolve from `~/.dkg` |
+| `DKG_API_PORT` / `DKG_HOME` | no | Default `9200` and `~/.dkg` |
+| `DKG_KA_NAME` / `DKG_UAL` / `DKG_SUBJECT_URI` / `DKG_PDF_PATH` | no | CLI script arguments; each also accepts argv |
+| `GROBID_URL` | no | Default `http://127.0.0.1:8070`; in production, includes the secret path prefix |
+| `GROBID_TIMEOUT_MS` | no | Default `120000` |
+| `PINATA_JWT` | yes | Pins PDFs for `pnpm dkg:publish-pdf` and the web Publish KA flow |
+| `IPFS_GATEWAY_URL` | no | Defaults to the Pinata public gateway |
+| `GOOGLE_API_KEY` | yes | `pdf-to-ka` + `ka-scorer` |
+| `GEMINI_MODEL` | no | Default `gemini-3.5-flash-lite` |
+| `BASE_SEPOLIA_RPC_URL` | yes | `fulfillPhase1` and all server-side contract reads |
+| `ORACLE_AGENT_PRIVATE_KEY` | yes | Viem signer for `fulfillPhase1` — must match on-chain `oracleAgent()`. Not the deployer key. Validated as 32-byte hex and normalised to `0x`-prefixed |
+| `ALCHEMY_BASE_SEPOLIA_WH_SK` | yes | HMAC secret for `/api/webhooks/alchemy` |
+| `INNGEST_SIGNING_KEY` | no | Inngest Cloud only; the local Dev Server needs none |
+| `INNGEST_API_BASE_URL` | no | REST base for publish-status polling. Defaults to `http://localhost:8288` in dev, `https://api.inngest.com` in production |
+| `DEV_SKIP_DKG_MINT` | no | **Development only.** Skips the DKG R-KA write and returns a synthetic UAL so `fulfillPhase1` can still complete |
+| `NEXT_PUBLIC_APP_URL` | yes | Reown AppKit `metadata.url`; must match the deployed origin |
+| `NEXT_PUBLIC_REOWN_PROJECT_ID` | no | Reown AppKit. Without it the app builds and renders, but wallet connect is disabled |
+| `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` / `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | no | Footer links; omit either to hide it |
+| `PRIVATE_KEY` | — | Foundry deployer / contract owner. **Not in `@desci/env`** — local deploy only, never Vercel |
+| `ORACLE_AGENT` | — | Public address of the oracle, written to `oracleAgent` at deploy. **Not in `@desci/env`** — Foundry `HelperConfig` only |
+| `ETHERSCAN_API_KEY` | — | `forge script --verify`. **Not in `@desci/env`** — Foundry only |
+| `INNGEST_EVENT_KEY` | — | Inngest Cloud. **Not in `@desci/env`** — read by the SDK from `process.env` |
 
 `STITCH_API_KEY` appears in `.env.example` for the Google Stitch MCP server, which reads it from the OS environment — it is not read from `.env` and not used by the app.
 
@@ -439,7 +443,7 @@ LLM: LangChain `ChatGoogleGenerativeAI` + Zod structured output. No LangGraph.
 
 ### `@desci/env` / `@desci/shared`
 
-`@desci/env`: typed optional env via `@t3-oss/env-core`, split into a server entry (`@desci/env`) and a client entry (`@desci/env/client`, `NEXT_PUBLIC_*` only), plus `requireEnv` for feature-boundary validation.
+`@desci/env`: fail-fast typed env via `@t3-oss/env-nextjs`, split into a server entry (`@desci/env`) and a client entry (`@desci/env/client`, `NEXT_PUBLIC_*` only) so server variable names never reach the browser bundle.
 
 `@desci/shared`: `BASE_SEPOLIA_CHAIN_ID` (`84532`), the DKG hub address, the `RATING_PHASE` enum mirroring Solidity, and shared quad/publish types.
 

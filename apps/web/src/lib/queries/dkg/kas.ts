@@ -5,7 +5,7 @@ import {
   queryPublicationsWithRatings,
   type PublicationWithRatingBinding,
 } from "@desci/dkg-client";
-import { requireDkgContextGraphId } from "@desci/env";
+import { env } from "@desci/env";
 import {
   getRatingControllerAddress,
   ratingControllerAbi,
@@ -48,7 +48,7 @@ const ratingController = getRatingControllerAddress(BASE_SEPOLIA_CHAIN_ID);
  * Throws on DKG failure so server components can show an unavailable state.
  */
 export async function getKas(): Promise<KaRow[]> {
-  const contextGraphId = requireDkgContextGraphId("listing Knowledge Assets");
+  const contextGraphId = env.DKG_CONTEXT_GRAPH_ID;
 
   const client = await createDkgClient();
   let rows: KaRow[];

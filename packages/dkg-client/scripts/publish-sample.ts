@@ -1,14 +1,10 @@
 import { createDkgClient } from "@desci/dkg-client";
 import { env } from "@desci/env";
-import {
-  resolveSampleContextGraphId,
-  resolveSampleKaName,
-  sampleSubjectUri,
-} from "./cli/sample.js";
+import { resolveSampleKaName, sampleSubjectUri } from "./cli/sample.js";
 import { runMain } from "./cli/run.js";
 
 async function main(): Promise<void> {
-  const contextGraphId = resolveSampleContextGraphId(env.DKG_CONTEXT_GRAPH_ID);
+  const contextGraphId = env.DKG_CONTEXT_GRAPH_ID;
   const kaName = resolveSampleKaName({
     kaName: env.DKG_KA_NAME,
     subjectUri: env.DKG_SUBJECT_URI,
