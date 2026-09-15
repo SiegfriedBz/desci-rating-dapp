@@ -411,11 +411,11 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 
 ### `@desci/dkg-client`
 
-`createDkgClient()` connects to the daemon and exposes `ensureContextGraph`, `publishAsset`, `getAssetUal`, `publishPublication`, `publishRating`, `query`, `getAssetQuadsByUal`, `queryRatingsAbout`, `getChainId`, `getHubAddress`, `getApiBaseUrl`, and `stop()` (a no-op — daemon lifecycle is external). Also exports `probeDkgDaemon` for cheap liveness checks, `queryPublicationsWithRatings` for the catalog, the KA graph builders, and the vocab IRIs.
+`createDkgClient()` connects to the daemon and exposes `ensureContextGraph`, `publishAsset`, `getAssetUal`, `publishPublication`, `publishRating`, `query`, `getAssetQuadsByUal`, `queryRatingsAbout`, `getChainId`, `getHubAddress`, `getApiBaseUrl`, and `stop()` (a no-op — daemon lifecycle is external). Also exports `probeDkgDaemon` for cheap liveness checks, `queryPublicationsWithRatings` for the catalog, the KA graph builders, `parseUal` / `ualFromVerifiableMemoryGraphIri` for asset identity, `literalLexicalForm` for reading query results, and the vocab IRIs.
 
 Auth and API URL resolve from `createDkgClient({ apiUrl, authToken })` or env / `~/.dkg`: `DKG_AUTH_TOKEN` or `~/.dkg/auth.token`; `DKG_API_URL`, else `~/.dkg/api.port`, else `config.json` `apiPort`, else `DKG_API_PORT` (default `9200`).
 
-R-KA quads: `schema:about`, `schema:ratingValue`, `schema:author`, `schema:description`. Publication graphs use schema.org plus DEO section types. `getAssetQuadsByUal` throws `TargetAssetNotIndexedError` on an empty result, which the Inngest function retries to absorb indexing lag.
+R-KA quads: `schema:about`, `schema:ratingValue`, `schema:author`, `schema:description` (the scorer's rationale), plus one repeated `desci:observedEvidence` / `desci:missingEvidence` literal per rigor signal. `queryRatingsAbout` returns those as `observed` / `missing` arrays, and falls back to parsing the old single-blob description for R-KAs minted before those terms existed. Publication graphs use schema.org plus DEO section types. `getAssetQuadsByUal` throws `TargetAssetNotIndexedError` on an empty result, which the Inngest function retries to absorb indexing lag.
 
 ### `@desci/agents`
 

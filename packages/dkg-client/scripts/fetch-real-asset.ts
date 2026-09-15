@@ -7,6 +7,17 @@ import { argOrEnv } from "./cli/env.js";
 import { runMain } from "./cli/run.js";
 import { resolveSampleKaName } from "./cli/sample.js";
 
+function printEvidence(label: string, items: string[]): void {
+  if (items.length === 0) {
+    console.log(`  ${label.padEnd(9)} : (none)`);
+    return;
+  }
+  console.log(`  ${label.padEnd(9)} :`);
+  for (const item of items) {
+    console.log(`    - ${item}`);
+  }
+}
+
 async function main(): Promise<void> {
   const contextGraphId = process.argv[3]?.trim() || env.DKG_CONTEXT_GRAPH_ID;
   const envUal = argOrEnv(2, "DKG_UAL");
@@ -91,12 +102,13 @@ async function main(): Promise<void> {
   } else {
     console.log(`Found ${ratingBindings.length} rating(s):\n`);
     for (const rating of ratingBindings) {
-      console.log(`  subject     : ${rating.ratingSubject}`);
-      console.log(`  value       : ${rating.ratingValue}`);
-      console.log(`  author      : ${rating.author}`);
-      console.log(
-        `  description : ${rating.description ?? "(none — older R-KA)"}`
-      );
+      console.log(`  subject   : ${rating.ratingSubject}`);
+      console.log(`  r-ka UAL  : ${rating.rKaUal ?? "(underivable)"}`);
+      console.log(`  value     : ${rating.ratingValue}`);
+      console.log(`  author    : ${rating.author}`);
+      console.log(`  rationale : ${rating.rationale ?? "(none — older R-KA)"}`);
+      printEvidence("observed", rating.observed);
+      printEvidence("missing", rating.missing);
       console.log();
     }
   }
