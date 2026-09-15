@@ -84,8 +84,8 @@ Runnable from the repo root (they are not npm scripts on this package):
 | `pnpm dkg:publish-sample` | `publish-sample.ts` | `ensureContextGraph` then `publishAsset` with a sample `schema:name` / `schema:description` quad set |
 | `pnpm dkg:fetch-asset` | `fetch-real-asset.ts` | Prints Action A (`getAssetQuadsByUal`) and Action B (`queryRatingsAbout`) |
 
-`publish-sample` / `fetch-real-asset` share defaults in `scripts/cli/sample.ts`: the context graph falls back to `DEFAULT_DKG_CONTEXT_GRAPH_ID` from `@desci/env` (`verisci`), and the KA name to `desci-sample-10` unless `DKG_KA_NAME` / `DKG_SUBJECT_URI` / `DKG_UAL` is set. Env names used in these scripts: `DKG_CONTEXT_GRAPH_ID`, `DKG_KA_NAME`, `DKG_SUBJECT_URI`, `DKG_UAL`.
+`publish-sample` / `fetch-real-asset` share defaults in `scripts/cli/sample.ts`: the context graph comes from the required `DKG_CONTEXT_GRAPH_ID`, and the KA name falls back to `desci-sample-10` unless `DKG_KA_NAME` / `DKG_SUBJECT_URI` / `DKG_UAL` is set. Env names used in these scripts: `DKG_CONTEXT_GRAPH_ID`, `DKG_KA_NAME`, `DKG_SUBJECT_URI`, `DKG_UAL`.
 
 ### `scripts/cli/`
 
-Shared CLI helpers: `run.ts` (`runMain`), `env.ts` (`requireEnv`, `argOrEnv`), `sample.ts` (sample graph/KA name resolution).
+Shared CLI helpers: `run.ts` (`runMain`), `env.ts` (`argOrEnv`), `sample.ts` (sample KA name resolution).

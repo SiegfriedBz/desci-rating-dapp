@@ -51,7 +51,7 @@ Flow: `readFile` → `pinPdfToIpfs` → `runPdfToKaAgent`. Requires `PINATA_JWT`
 | --- | --- |
 | `GROBID_URL` | default `http://127.0.0.1:8070` (`pnpm grobid:up`, image `grobid/grobid:0.8.2-crf`) |
 | `GROBID_TIMEOUT_MS` | optional (default 120000) |
-| `GOOGLE_API_KEY` / `GEMINI_API_KEY` | required for extract |
+| `GOOGLE_API_KEY` | required for extract |
 | `GEMINI_MODEL` | optional |
 | `DKG_*` | daemon auth via `@desci/dkg-client` |
 

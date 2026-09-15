@@ -46,6 +46,6 @@ The CLI (`scripts/publish-pdf.ts`) pins then calls the agent; it does **not** fe
 | Var | Role |
 | --- | --- |
 | `PINATA_JWT` | required for `pinPdfToIpfs` |
-| `IPFS_GATEWAY_URL` | optional; resolved via `ipfsGatewayUrl` in `@desci/env` (default Pinata public gateway) |
+| `IPFS_GATEWAY_URL` | optional; defaults to the Pinata public gateway in `@desci/env` |
 
-Pinning and retrieval are separate: Pinata JWT for `pinPdfToIpfs`, `ipfsGatewayUrl` for `fetchPdfByCid`. Do not use `ipfs.io` (rate limits / SW-only).
+Pinning and retrieval are separate: `PINATA_JWT` for `pinPdfToIpfs`, `IPFS_GATEWAY_URL` for `fetchPdfByCid`. Do not use `ipfs.io` (rate limits / SW-only).

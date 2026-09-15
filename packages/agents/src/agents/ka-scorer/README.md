@@ -34,7 +34,7 @@ ka-scorer/
 
 ## Env
 
-- `GOOGLE_API_KEY` or `GEMINI_API_KEY` (required)
+- `GOOGLE_API_KEY` (required)
 - `GEMINI_MODEL` (optional; default `gemini-3.5-flash-lite`)
 
 ## Scoring notes
