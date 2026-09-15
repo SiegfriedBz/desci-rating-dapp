@@ -11,7 +11,7 @@ import {
 import { fulfillPhase1OnChain } from "../../evm/fulfill-phase1.js";
 import { InngestEvent, inngest } from "../client.js";
 
-const PHASE_ONE_AUTHOR = "BioProtocol_Phase1_Agent";
+const PHASE_ONE_AUTHOR = "VeriSci_Phase1_Agent";
 
 /**
  * When DEV_SKIP_DKG_MINT=true the oracle scores the KA normally but skips the
