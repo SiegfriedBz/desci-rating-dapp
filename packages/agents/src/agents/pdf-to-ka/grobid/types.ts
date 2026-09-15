@@ -1,13 +1,15 @@
+import type { PublicationSectionKind } from "@desci/dkg-client";
+
 export type TeiAuthor = {
   name: string;
   orcid: string | null;
 };
 
-export type TeiSectionKind =
-  | "methods"
-  | "materials"
-  | "results"
-  | "data_availability";
+/**
+ * GROBID headings are classified straight into the publication KA vocabulary,
+ * so this aliases the canonical union rather than restating it.
+ */
+export type TeiSectionKind = PublicationSectionKind;
 
 export type TeiSection = {
   heading: string;
