@@ -61,14 +61,6 @@ export const env = createEnv({
     INNGEST_SIGNING_KEY: z.string().min(1).optional(),
     /** Omit to use Inngest Cloud in production, the Dev Server otherwise. */
     INNGEST_API_BASE_URL: baseUrl().optional(),
-
-    /**
-     * Dev-only: skip the DKG `publishAssertion` write in `mint-r-ka` and
-     * substitute a synthetic R-KA UAL, so the full
-     * requestPhase1 → oracle → fulfillPhase1 flow runs without a healthy DKG
-     * write quorum. Never enable in production.
-     */
-    DEV_SKIP_DKG_MINT: z.enum(["true", "false"]).optional(),
   },
   experimental__runtimeEnv: process.env,
   emptyStringAsUndefined: true,

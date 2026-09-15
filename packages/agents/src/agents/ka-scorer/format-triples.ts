@@ -1,10 +1,11 @@
-import type { TargetAssetBinding } from "@desci/dkg-client";
-
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const SCHEMA_ENCODING = "http://schema.org/encoding";
-const SCHEMA_CONTENT_URL = "http://schema.org/contentUrl";
-const SCHEMA_ENCODING_FORMAT = "http://schema.org/encodingFormat";
-const SCHEMA_MEDIA_OBJECT = "http://schema.org/MediaObject";
+import {
+  RDF_TYPE,
+  SCHEMA_CONTENT_URL,
+  SCHEMA_ENCODING,
+  SCHEMA_ENCODING_FORMAT,
+  SCHEMA_MEDIA_OBJECT,
+  type TargetAssetBinding,
+} from "@desci/dkg-client";
 
 const DROP_PREDICATES = new Set([
   SCHEMA_ENCODING,

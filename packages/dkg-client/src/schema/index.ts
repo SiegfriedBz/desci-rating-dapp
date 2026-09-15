@@ -31,6 +31,8 @@ export {
   publicationWithRatingBindingSchema,
 } from "./types.js";
 
+export { isUal, parseUal, type ParsedUal } from "./ual.js";
+
 export type {
   PublicationAuthor,
   PublicationMetadata,

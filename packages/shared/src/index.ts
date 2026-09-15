@@ -15,8 +15,6 @@ export const RATING_PHASE = {
   Phase3Completed: 3,
 } as const;
 
-export type RatingPhase = (typeof RATING_PHASE)[keyof typeof RATING_PHASE];
-
 export type DkgConfig = {
   /** Override daemon base URL, e.g. http://127.0.0.1:9200 */
   apiUrl?: string;

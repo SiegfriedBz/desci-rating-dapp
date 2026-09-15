@@ -2,6 +2,7 @@
 
 import {
   createDkgClient,
+  parseUal,
   queryPublicationsWithRatings,
   type PublicationWithRatingBinding,
 } from "@desci/dkg-client";
@@ -25,14 +26,10 @@ function parseRatingValue(raw: string | null): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-/** Token id from `did:dkg:base:{chain}/{addr}/{tokenId}` (0 if unparseable). */
+/** Token id for newest-first ordering (0 when the UAL is unparseable). */
 function tokenIdFromUal(ual: string): number {
-  const match = ual.match(/\/(\d+)\s*$/);
-  if (!match) {
-    return 0;
-  }
-  const id = Number.parseInt(match[1]!, 10);
-  return Number.isFinite(id) ? id : 0;
+  const parsed = parseUal(ual);
+  return parsed ? Number(parsed.tokenId) : 0;
 }
 
 const ratingController = getRatingControllerAddress(BASE_SEPOLIA_CHAIN_ID);
@@ -42,8 +39,8 @@ const ratingController = getRatingControllerAddress(BASE_SEPOLIA_CHAIN_ID);
  * Landing preview only — newest first, capped at {@link LANDING_KA_CATALOG_LIMIT}.
  *
  * Rating data comes from DKG SPARQL first. For rows where SPARQL has no rating
- * (e.g. DEV_SKIP_DKG_MINT or DKG sync lag), we fall back to the on-chain
- * RatingRecord via multicall so the score and R-KA UAL are always shown.
+ * (DKG sync lag after a mint), we fall back to the on-chain RatingRecord via
+ * multicall so the score and R-KA UAL are always shown.
  *
  * Throws on DKG failure so server components can show an unavailable state.
  */
@@ -74,7 +71,7 @@ export async function getKas(): Promise<KaRow[]> {
   }
 
   // For rows that SPARQL didn't return a rating for, check on-chain.
-  // This covers DEV_SKIP_DKG_MINT and any DKG sync lag after a real mint.
+  // This covers DKG sync lag after a real mint.
   const unratedIndices = rows
     .map((r, i) => ({ r, i }))
     .filter(({ r }) => r.rKaUal == null);
