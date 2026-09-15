@@ -80,8 +80,6 @@ Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `ora
 - `functions/publish-pdf.ts` — `fetchPdfByCid` → `runPdfToKaAgent`
 - `functions/log-contract-event.ts` — log-only handlers (`phase1-fulfilled-log`, `request-cancelled-log`, `oracle-updated-log`)
 
-Dev-only: `DEV_SKIP_DKG_MINT="true"` skips the DKG R-KA write and returns a synthetic UAL so `fulfillPhase1` can still complete. Never enable it outside development.
-
 Repo-root `pnpm inngest:dev` → `http://localhost:3000/api/inngest`.
 
 ### `src/integrations/evm/`

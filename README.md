@@ -343,8 +343,6 @@ Production branch is `main`. Scope these to **Preview as well as Production** �
 - `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `ALCHEMY_BASE_SEPOLIA_WH_SK`
 - `NEXT_PUBLIC_APP_URL` set to the deployed origin, and `NEXT_PUBLIC_REOWN_PROJECT_ID`
 
-`DEV_SKIP_DKG_MINT` must **never** be set in production.
-
 `@desci/contracts` builds with `tsc` over the committed `ts/` ABI files, because Foundry is not available on Vercel. After Solidity changes, regenerate locally with `pnpm contracts:build` and commit `packages/contracts/ts/`.
 
 ### 4 — Wire the external services
@@ -380,7 +378,6 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 | `ALCHEMY_BASE_SEPOLIA_WH_SK` | yes | HMAC secret for `/api/webhooks/alchemy` |
 | `INNGEST_SIGNING_KEY` | no | Inngest Cloud only; the local Dev Server needs none |
 | `INNGEST_API_BASE_URL` | no | REST base for publish-status polling. Defaults to `http://localhost:8288` in dev, `https://api.inngest.com` in production |
-| `DEV_SKIP_DKG_MINT` | no | **Development only.** Skips the DKG R-KA write and returns a synthetic UAL so `fulfillPhase1` can still complete |
 | `NEXT_PUBLIC_APP_URL` | yes | Reown AppKit `metadata.url`; must match the deployed origin |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID` | no | Reown AppKit. Without it the app builds and renders, but wallet connect is disabled |
 | `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` / `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | no | Footer links; omit either to hide it |
@@ -475,7 +472,6 @@ Note that on Base Sepolia neither mechanism actually throttles anyone, since bot
 
 - Replace `console.log` with structured logging and alerting on the webhook and Inngest functions.
 - Add tests beyond Foundry — `@desci/agents`, `@desci/dkg-client`, and `apps/web` currently have none.
-- Guard `DEV_SKIP_DKG_MINT` so it cannot be enabled in a production build.
 - Move `RatingController` ownership off a single EOA; `setOracleAgent` and `cancelPendingRequest` are guarded only by `owner`.
 
 ### 3 — Phase 2: `requestPhase2` (human review)

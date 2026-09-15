@@ -30,10 +30,6 @@ Import via `@desci/agents/inngest`. Functions are registered in `apps/web/src/ap
 
 Both DKG functions read `env.DKG_CONTEXT_GRAPH_ID`, which `@desci/env` requires.
 
-## Dev-only flag
-
-`DEV_SKIP_DKG_MINT="true"` makes `mint-r-ka` skip `publishRating` (which needs a 3-peer DKG write quorum) and return a synthetic UAL — `did:dkg:base:84532/dev-skip-dkg/{requestId slice}` — so scoring and the on-chain fulfill still run end to end. Development only; there is no guard against enabling it elsewhere.
-
 ## Layout
 
 ```

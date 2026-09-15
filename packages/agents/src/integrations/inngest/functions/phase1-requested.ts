@@ -13,14 +13,6 @@ import { InngestEvent, inngest } from "../client.js";
 
 const PHASE_ONE_AUTHOR = "VeriSci_Phase1_Agent";
 
-/**
- * When DEV_SKIP_DKG_MINT=true the oracle scores the KA normally but skips the
- * DKG publishAssertion write (which needs 3-peer write quorum).  Instead it
- * returns a synthetic R-KA UAL so fulfillPhase1 can still complete on-chain.
- * Never enable this in production.
- */
-const DEV_SKIP_DKG_MINT = env.DEV_SKIP_DKG_MINT === "true";
-
 export const phase1RequestedFunction = inngest.createFunction(
   {
     id: "phase1-requested",
@@ -56,18 +48,6 @@ export const phase1RequestedFunction = inngest.createFunction(
     });
 
     const minted = await step.run("mint-r-ka", async () => {
-      if (DEV_SKIP_DKG_MINT) {
-        // Bypass DKG write quorum for local development.
-        // A real R-KA UAL is only produced when the DKG network has ≥3 healthy
-        // core peers. Use this flag until the testnet stabilises.
-        const syntheticUal = `did:dkg:base:84532/dev-skip-dkg/${requestId.slice(2, 14)}`;
-        console.warn(
-          `[phase1-requested] DEV_SKIP_DKG_MINT=true — skipping DKG publish. ` +
-            `Synthetic R-KA UAL: ${syntheticUal}`
-        );
-        return { rKaUal: syntheticUal, ratingSubject: syntheticUal };
-      }
-
       const client = await createDkgClient();
       try {
         const result = await client.publishRating({
