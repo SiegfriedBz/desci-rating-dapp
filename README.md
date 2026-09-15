@@ -232,12 +232,10 @@ Alchemy Notify needs a public HTTPS URL. Locally, use `ngrok http 3000` and poin
 ### CLI-only workflows
 
 ```bash
-# Sample KA + mock R-KA, no external services
+# Sample Target KA (no PDF, GROBID, or Gemini)
 pnpm dkg:publish-sample          # prints a Target KA UAL
 # set DKG_UAL and DKG_CONTEXT_GRAPH_ID in .env
 pnpm dkg:fetch-asset             # Action A: KA triples  /  Action B: empty
-pnpm dkg:publish-rating          # mock R-KA, score=85
-pnpm dkg:fetch-asset             # Action B now shows the rating
 
 # Real PDF → publication Target KA
 pnpm grobid:up
@@ -398,7 +396,6 @@ Every variable is declared **optional** in `@desci/env` so builds never fail on 
 | `pnpm build` / `dev` / `test` / `clean` | Turborepo. `test` currently resolves to the Foundry suite only |
 | `pnpm dkg:init` / `dkg:start` / `dkg:stop` | Local DKG daemon lifecycle |
 | `pnpm dkg:publish-sample` | Publish a sample Target KA |
-| `pnpm dkg:publish-rating` | Publish a mock R-KA (requires `DKG_UAL`) |
 | `pnpm dkg:fetch-asset` | Print KA quads + ratings for a UAL |
 | `pnpm dkg:publish-pdf [path]` | Pin → GROBID → Gemini → Target KA |
 | `pnpm grobid:up` / `grobid:down` | GROBID Docker sidecar |
