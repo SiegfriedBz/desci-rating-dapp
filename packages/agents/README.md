@@ -77,7 +77,7 @@ Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `ora
 
 - `adapters/rating-controller-event.ts` — decoded log → Inngest events (idempotency keys per log)
 - `functions/phase1-requested.ts` — fetch KA → `runKaScorerAgent` → mint R-KA → `fulfillPhase1OnChain`
-- `functions/publish-pdf.ts` — `fetchPdfByCid` → `runPdfToKaAgent`
+- `functions/publish-pdf.ts` — `extractTeiFromPdf` → `extractPublicationMetadata` → `publishPublicationToDkg`, one stage per step
 - `functions/log-contract-event.ts` — log-only handlers (`phase1-fulfilled-log`, `request-cancelled-log`, `oracle-updated-log`)
 
 Repo-root `pnpm inngest:dev` → `http://localhost:3000/api/inngest`.

@@ -105,7 +105,7 @@ Two independent flows. A user may publish a KA without requesting a rating, or r
 
 ### Flow 1 — Publish a KA (PDF → Target KA)
 
-Available from the web app (`Publish KA` modal on the landing page) and from the CLI (`pnpm dkg:publish-pdf`). Both converge on `runPdfToKaAgent`.
+Available from the web app (`Publish KA` modal on the landing page) and from the CLI (`pnpm dkg:publish-pdf`). Both run the same three stages — the CLI in one call via `runPdfToKaAgent`, the Inngest job as one step per stage so a retry resumes instead of restarting.
 
 ```mermaid
 flowchart TD
@@ -116,9 +116,9 @@ flowchart TD
   WEB --> PIN["pinPdfToIpfs (Pinata)<br/>→ ipfs:// CID"]
   CLI --> PIN
   PIN -->|"web only"| EV["inngest.send(pdf.submitted)<br/>pdfCid + filename"]
-  EV --> FN["Inngest publish-pdf<br/>→ fetchPdfByCid"]
-  FN --> AGENT["runPdfToKaAgent"]
-  PIN -->|"CLI: direct call"| AGENT
+  EV --> FN["Inngest publish-pdf<br/>steps: grobid-extract → gemini-structure → dkg-publish"]
+  FN --> AGENT["pdf-to-ka stages"]
+  PIN -->|"CLI: runPdfToKaAgent"| AGENT
   AGENT --> GROBID["GROBID /api/processFulltextDocument<br/>→ TEI-XML"]
   GROBID --> TEI["extractTeiSections<br/>→ title / abstract / authors / sections"]
   TEI --> META["Gemini structured extract<br/>→ PublicationMetadata"]

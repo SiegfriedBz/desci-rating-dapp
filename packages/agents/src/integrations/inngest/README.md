@@ -19,7 +19,7 @@ Import via `@desci/agents/inngest`. Functions are registered in `apps/web/src/ap
 | Export | `id` | Config | Behavior |
 | --- | --- | --- | --- |
 | `phase1RequestedFunction` | `phase1-requested` | `retries: 3`, concurrency 5 global + 1 per `event.data.requestId` | fetch target KA → `runKaScorerAgent` → mint R-KA → `fulfillPhase1OnChain` |
-| `publishPdfFunction` | `publish-pdf` | `retries: 2`, `timeouts.finish: "10m"` | `fetchPdfByCid` → `runPdfToKaAgent` → `{ ual, pdfCid }` |
+| `publishPdfFunction` | `publish-pdf` | `retries: 2`, `timeouts.finish: "20m"` | GROBID → Gemini → publication KA → `{ ual, pdfCid }` |
 | `phase1FulfilledLogFunction` | `phase1-fulfilled-log` | `retries: 2` | log-only |
 | `requestCancelledLogFunction` | `request-cancelled-log` | `retries: 2` | log-only |
 | `oracleUpdatedLogFunction` | `oracle-updated-log` | `retries: 2` | log-only |
@@ -28,7 +28,11 @@ Import via `@desci/agents/inngest`. Functions are registered in `apps/web/src/ap
 
 `mint-r-ka` passes the scorer's verdict to `publishRating` as structured fields: `rationale` becomes `schema:description`, and `observed` / `missing` become repeated `desci:observedEvidence` / `desci:missingEvidence` literals. The step keeps returning `{ rKaUal, ratingSubject }` because `fulfill-on-chain` reads `minted.rKaUal`.
 
-`publish-pdf` steps: `fetch-pdf` (bytes returned base64-encoded so they survive Inngest's JSON step boundary) → `run-pdf-to-ka-agent`.
+`publish-pdf` steps: `grobid-extract` (fetches the pinned PDF, returns TEI slices) → `gemini-structure` → `dkg-publish`. One stage per step, so a retry of the mint does not pay for GROBID and Gemini again, and no step carries the PDF bytes across the JSON boundary.
+
+`dkg-publish` names the asset `desci-pub-<event id>`. The daemon returns the UAL of an already-published name instead of minting, so a retry that follows a lost response reuses the first asset rather than duplicating it. A new submission is a new event, so a deliberate republish still mints a fresh UAL — which `queryPublicationsWithRatings` depends on.
+
+A step's work runs inside one request to `/api/inngest`, so `maxDuration` on that route has to clear the slowest step.
 
 Both DKG functions read `env.DKG_CONTEXT_GRAPH_ID`, which `@desci/env` requires.
 
