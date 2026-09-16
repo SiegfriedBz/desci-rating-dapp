@@ -1,6 +1,6 @@
 "use server";
 
-import { env, inngestApiBaseUrl } from "@desci/env";
+import { env, inngestApiBaseUrl, inngestEnvName } from "@desci/env";
 import {
   PublishJobStatus,
   type PublishStatusResult,
@@ -48,6 +48,11 @@ export async function getPublishStatus(
   if (env.INNGEST_SIGNING_KEY) {
     headers.set("Authorization", `Bearer ${env.INNGEST_SIGNING_KEY}`);
   }
+  // Branch environments share one signing key, so the key alone does not say
+  // which one to read. The SDK adds this on send; a raw fetch must add it too.
+  if (inngestEnvName) {
+    headers.set("x-inngest-env", inngestEnvName);
+  }
 
   const res = await fetch(
     `${inngestApiBaseUrl}/v1/events/${encodeURIComponent(trimmed)}/runs`,
@@ -67,7 +72,7 @@ export async function getPublishStatus(
   const json = (await res.json()) as InngestRunsResponse;
   const run = json.data?.[0];
   if (!run) {
-    return { status: PublishJobStatus.Queued };
+    return { status: PublishJobStatus.NotFound };
   }
 
   const status = mapInngestStatus(run.status);

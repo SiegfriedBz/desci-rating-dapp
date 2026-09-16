@@ -3,6 +3,8 @@ export enum PublishJobStatus {
   Running = "Running",
   Completed = "Completed",
   Failed = "Failed",
+  /** Inngest knows no run for this event id. */
+  NotFound = "NotFound",
 }
 
 /** UI phase for the Publish KA modal (distinct from Inngest run status). */
@@ -27,6 +29,13 @@ export const MAX_PDF_MB = MAX_PDF_BYTES / (1024 * 1024);
 
 /** Poll interval for Inngest job status while the modal is open. */
 export const PUBLISH_STATUS_POLL_MS = 3_000;
+
+/**
+ * Polls to tolerate before treating `NotFound` as a failure. Inngest can lag a
+ * moment behind `send()`, but a persistent miss means the poll is reading a
+ * different environment than the one the event went to.
+ */
+export const PUBLISH_STATUS_GRACE_TICKS = 10;
 
 /** Accept common PDF MIME types and `.pdf` extension (some OS/browsers omit type). */
 export function isPdfFile(file: File): boolean {

@@ -12,6 +12,7 @@ import {
   MAX_PDF_MB,
   PublishJobStatus,
   PublishModalPhase,
+  PUBLISH_STATUS_GRACE_TICKS,
   PUBLISH_STATUS_POLL_MS,
 } from "@/lib/publish-types";
 
@@ -25,6 +26,8 @@ export function usePublishKa(open: boolean) {
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Consecutive polls where Inngest reported no run for this event id. */
+  const missesRef = useRef(0);
 
   const clearPoll = useCallback(() => {
     if (pollRef.current) {
@@ -41,6 +44,7 @@ export function usePublishKa(open: boolean) {
     setUal(null);
     setCopied(false);
     clearPoll();
+    missesRef.current = 0;
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -57,6 +61,7 @@ export function usePublishKa(open: boolean) {
   const startPolling = useCallback(
     (id: string) => {
       clearPoll();
+      missesRef.current = 0;
 
       const tick = async () => {
         try {
@@ -74,6 +79,20 @@ export function usePublishKa(open: boolean) {
             setPhase(PublishModalPhase.Error);
             return;
           }
+          if (result.status === PublishJobStatus.NotFound) {
+            missesRef.current += 1;
+            if (missesRef.current > PUBLISH_STATUS_GRACE_TICKS) {
+              clearPoll();
+              setError(
+                "Inngest has no record of this job. The status poll is probably reading a different Inngest environment than the one the job was sent to."
+              );
+              setPhase(PublishModalPhase.Error);
+              return;
+            }
+            setPhase(PublishModalPhase.Processing);
+            return;
+          }
+          missesRef.current = 0;
           setPhase(PublishModalPhase.Processing);
         } catch (err) {
           clearPoll();
