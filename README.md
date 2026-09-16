@@ -378,6 +378,7 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 | `ALCHEMY_BASE_SEPOLIA_WH_SK` | yes | HMAC secret for `/api/webhooks/alchemy` |
 | `INNGEST_SIGNING_KEY` | no | Inngest Cloud only; the local Dev Server needs none |
 | `INNGEST_API_BASE_URL` | no | REST base for publish-status polling. Defaults to `http://localhost:8288` in dev, `https://api.inngest.com` in production |
+| `INNGEST_ENV` | no | Inngest environment the publish-status poll reads. Derived from `VERCEL_GIT_COMMIT_REF` when unset, matching what the SDK sends |
 | `NEXT_PUBLIC_APP_URL` | yes | Reown AppKit `metadata.url`; must match the deployed origin |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID` | no | Reown AppKit. Without it the app builds and renders, but wallet connect is disabled |
 | `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` / `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | no | Footer links; omit either to hide it |

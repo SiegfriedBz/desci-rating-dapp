@@ -61,6 +61,8 @@ export const env = createEnv({
     INNGEST_SIGNING_KEY: z.string().min(1).optional(),
     /** Omit to use Inngest Cloud in production, the Dev Server otherwise. */
     INNGEST_API_BASE_URL: baseUrl().optional(),
+    /** Branch environment name. Omit to derive it from the platform. */
+    INNGEST_ENV: z.string().min(1).optional(),
   },
   experimental__runtimeEnv: process.env,
   emptyStringAsUndefined: true,
@@ -73,3 +75,12 @@ export const inngestApiBaseUrl: string =
   (process.env.NODE_ENV === "production"
     ? "https://api.inngest.com"
     : "http://localhost:8288");
+
+/**
+ * Inngest environment for REST reads. All branch environments share one
+ * signing key, so a read must name the environment or it matches nothing.
+ * Mirrors the SDK, which applies the same resolution automatically on `send`.
+ */
+export const inngestEnvName: string | undefined =
+  env.INNGEST_ENV ??
+  (process.env["VERCEL_GIT_COMMIT_REF"]?.trim() || undefined);
