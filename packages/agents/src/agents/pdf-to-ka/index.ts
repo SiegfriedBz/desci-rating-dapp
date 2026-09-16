@@ -1,6 +1,9 @@
 export {
+  extractTeiFromPdf,
+  publishPublicationToDkg,
   runPdfToKaAgent,
   type PdfToKaResult,
+  type PublishPublicationToDkgInput,
   type RunPdfToKaAgentInput,
 } from "./agent.js";
 export { extractPublicationMetadata } from "./extract/extract.js";

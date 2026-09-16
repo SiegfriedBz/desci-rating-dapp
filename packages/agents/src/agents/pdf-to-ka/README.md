@@ -10,7 +10,7 @@ Agent: scientific PDF bytes + already-pinned CID → publication Target Knowledg
 4. Gemini structured extract → `PublicationMetadata` (`pdfCid` set from the caller)
 5. `publishPublication` → Target KA UAL
 
-**Pinning is not part of this agent.** Callers pin first via [`@desci/agents/ipfs`](../../ipfs/README.md) (`pinPdfToIpfs`) and pass `{ pdf, pdfCid }`. The CLI does that composition; a future server action / Inngest job should too.
+**Pinning is not part of this agent.** Callers pin first via [`@desci/agents/ipfs`](../../ipfs/README.md) (`pinPdfToIpfs`) and pass `{ pdf, pdfCid }`. The CLI and the Inngest `publish-pdf` function both do that composition.
 
 DOI (`schema:sameAs`) is metadata only — use the content-addressed `ipfs://…` link (`schema:encoding` / `schema:contentUrl`) for PDF display/retrieval (`fetchPdfByCid`).
 
@@ -18,11 +18,15 @@ DOI (`schema:sameAs`) is metadata only — use the content-addressed `ipfs://…
 
 | Export | Role |
 |--------|------|
-| `runPdfToKaAgent(input)` | Full agent (`agent.ts`) |
-| `processPdfWithGrobid(pdf, filename?)` | GROBID → TEI-XML |
+| `runPdfToKaAgent(input)` | Full agent (`agent.ts`) — all three stages in one call |
+| `extractTeiFromPdf({ pdf, filename? })` | Stage 1: GROBID → TEI slices |
+| `extractPublicationMetadata` / `publicationMetadataSchema` | Stage 2: Gemini → `PublicationMetadata` |
+| `publishPublicationToDkg(input)` | Stage 3: metadata → Target KA UAL |
+| `processPdfWithGrobid(pdf, filename?)` | GROBID → raw TEI-XML |
 | `extractTeiSections` | TEI-XML → structured slices |
-| `extractPublicationMetadata` / `publicationMetadataSchema` | Gemini → `PublicationMetadata` |
-| `PdfToKaResult` / `RunPdfToKaAgentInput` | Types |
+| `PdfToKaResult` / `RunPdfToKaAgentInput` / `PublishPublicationToDkgInput` | Types |
+
+The stages are exported separately so a caller that can retry one of them — the Inngest `publish-pdf` function — does not have to redo the others. Pass `name` to `publishPublicationToDkg` if your caller can be retried: the daemon returns the UAL of an already-published name instead of minting a second asset.
 
 Import via `@desci/agents` or `@desci/agents/pdf-to-ka`.
 
