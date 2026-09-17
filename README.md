@@ -256,7 +256,7 @@ An Alchemy webhook is a dashboard rule with three parts: the contract it watches
 
 `pnpm dkg:init` (`dkg init --network testnet`) creates `~/.dkg` with `config.json`, the agent key, and the daemon's admin token in `~/.dkg/auth.token`. `@desci/dkg-client` resolves both the port and that token by itself, which is why `DKG_API_URL` and `DKG_AUTH_TOKEN` stay unset locally. Verify with `dkg status` and `curl -s http://127.0.0.1:9200/api/status`.
 
-**The context graph needs no manual creation locally.** Every publish calls `ensureContextGraph` first, which POSTs `/api/context-graph/create` with the id exactly as written, so `DKG_CONTEXT_GRAPH_ID=verisci` is enough. The trap is mixing that with the CLI: **a bare id stays bare over HTTP, while `dkg context-graph create` auto-prefixes your agent address.** If you do create it from the CLI, copy the full `<agent-address>/verisci` it prints into `.env`, or the two paths will disagree about which graph you mean. Full procedure, including on-chain registration: [Creating and registering a context graph](#creating-and-registering-a-context-graph).
+**The context graph needs no manual creation locally.** Every publish calls `ensureContextGraph` first, which POSTs `/api/context-graph/create` with the id exactly as written, so `DKG_CONTEXT_GRAPH_ID=verisci` is enough. The trap is mixing that with the CLI: **a bare id stays bare over HTTP, while `dkg context-graph create` auto-prefixes your DKG node agent wallet address.** If you do create it from the CLI, copy the full `<dkg-agent-address>/verisci` it prints into `.env`, or the two paths will disagree about which graph you mean. Full procedure, including on-chain registration: [Creating and registering a context graph](#creating-and-registering-a-context-graph).
 
 **Publishing from a local daemon still spends real Base Sepolia gas.** The node's own wallet pays for the KA mint, and the first publish into an unregistered graph also pays to register it. Fund that wallet, and check it with the daemon's own token:
 
@@ -325,7 +325,7 @@ dkg subscribe 0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci
 
 Creating and registering are separate, and only registration costs anything.
 
-**1 — Create, subscribe and persist.** Pass a *bare* name: the daemon prefixes your agent address and prints the full id, which is the one every other command and `DKG_CONTEXT_GRAPH_ID` want. `--access-policy 0` (open) is the CLI default and matches what `ensureContextGraph` sends; `--save` writes the subscription into `config.json`.
+**1 — Create, subscribe and persist.** Pass a *bare* name: the daemon prefixes your DKG node agent wallet address and prints the full id, which is the one every other command and `DKG_CONTEXT_GRAPH_ID` want. `--access-policy 0` (open) is the CLI default and matches what `ensureContextGraph` sends; `--save` writes the subscription into `config.json`.
 
 ```bash
 dkg context-graph create verisci-prod --access-policy 0 --save
