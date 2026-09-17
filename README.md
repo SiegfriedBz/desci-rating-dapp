@@ -455,6 +455,10 @@ Why each knob is needed rather than just the contract: `getRequestId` is `keccak
 
 Case does not matter in the address: the webhook route and every read run it through viem's `getAddress` first.
 
+`NEXT_PUBLIC_*` values are **inlined at build time**, so setting the variable is not enough — the environment needs a fresh deployment before it stops using the address baked into the previous bundle.
+
+A freshly created graph means the catalog is empty until something is published into it. That is the intended clean slate for a new environment, not a fault.
+
 `@desci/contracts` builds with `tsc` over the committed `ts/` ABI files, because Foundry is not available on Vercel. After Solidity changes, regenerate locally with `pnpm contracts:build` and commit `packages/contracts/ts/`.
 
 ### 4 — Wire the external services

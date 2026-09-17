@@ -27,4 +27,4 @@ evm/
 | `ORACLE_AGENT_PRIVATE_KEY` | required — signer must match on-chain `oracleAgent` |
 | `BASE_SEPOLIA_RPC_URL` | required — public RPC for read + send |
 
-Address/ABI come from `@desci/contracts` (`getRatingControllerAddress`, `ratingControllerAbi`). Chain defaults to Base Sepolia (`84532`).
+Address/ABI come from `@desci/contracts` (`getRatingControllerAddress`, `ratingControllerAbi`). Chain defaults to Base Sepolia (`84532`). The address itself resolves from `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS`, so the oracle fulfills on whichever contract the current environment owns — production and preview run separate deploys.
