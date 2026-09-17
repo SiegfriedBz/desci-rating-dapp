@@ -267,16 +267,43 @@ DKG daemon configuration (`~/.dkg/config.json`):
 {
   "nodeRole": "edge",
   "networkConfig": "testnet",
-  "contextGraphs": ["0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci"],
+  "contextGraphs": [
+    "0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci",
+    "0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci-prod"
+  ],
   "chain": { "rpcUrl": "http://127.0.0.1:8545", "rpcUrls": [] }
 }
 ```
 
-List the graph under `contextGraphs` so the node re-subscribes on every restart — a runtime `dkg subscribe` alone does not survive a restart:
+One graph per environment: `verisci` (on-chain registry id `433`) backs Preview, `verisci-prod` (id `456`) backs Production. Both must be listed under `contextGraphs` so the node re-subscribes on every restart — a runtime `dkg subscribe` alone does not survive a restart:
 
 ```bash
 dkg subscribe 0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci
 ```
+
+#### Creating and registering a context graph
+
+Creating and registering are separate, and only registration costs anything.
+
+**1 — Create, subscribe and persist.** Pass a *bare* name: the daemon prefixes your agent address and prints the full id, which is the one every other command and `DKG_CONTEXT_GRAPH_ID` want. `--access-policy 0` (open) is the CLI default and matches what `ensureContextGraph` sends; `--save` writes the subscription into `config.json`.
+
+```bash
+dkg context-graph create verisci-prod --access-policy 0 --save
+```
+
+The graph exists on the node within seconds, but the command then **blocks for ten minutes or more** fanning shared-memory sync out to every peer, and `--save` only lands when it returns. Check `dkg context-graph list` from a second shell rather than waiting; if you interrupt the client, add the id to `contextGraphs` by hand.
+
+**2 — Register on chain.** Create is free and local-only — the graph reports `policySource: owner-signed-unregistered` until registered. `vm/publish` auto-registers on first publish, but doing it up front keeps that gas out of a publish that already runs close to the Vercel invocation ceiling. It takes seconds and prints the registry id:
+
+```bash
+dkg context-graph register 0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci-prod
+```
+
+Pass no policy flags: the defaults (`accessPolicy 0`, `publishPolicy 1`) are what the existing graphs use.
+
+For a few minutes afterwards the daemon logs `RFC-64 authority bootstrap incomplete … execution reverted: ERC721NonexistentToken` and the graph shows `authorityState = blocked`, `stableReason = authority-resolution-failed`. That is the finalized-chain read not yet seeing the fresh token, **not** a bad registration, and it clears itself — `verisci-prod` reached `policySource = finalized-chain` about twenty minutes after registering. Recreating the graph at that point would only waste another registration.
+
+Two red herrings seen while doing this, both harmless: `dkg status` printing `Store … UNREACHABLE` (oxigraph answers `200` when probed directly; the CLI's probe just times out behind a busy store scheduler), and `dkg context-graph catchup-status` reporting a failed job (the staging graph's has been failed since the day it was created and it publishes fine).
 
 ### 2 — Why a local RPC proxy is required
 
@@ -330,6 +357,8 @@ for g in (d.get('rfc64Catalog') or {}).get('contextGraphs') or []:
 ```
 
 Every subscribed graph is reported, because authority resolution is per-graph: one healthy graph says nothing about the others.
+
+Two graphs now backfill through the single proxy, so `authority-resolution-failed` has two very different causes. Read the daemon log before touching the proxy: `ERC721NonexistentToken` is the post-registration finality lag described above and clears itself, while a head-probe timeout is genuine queue contention against the 4-second deadline.
 
 `accessPolicy` is the field that matters: once it holds a value, writes are accepted. A `stableReason` of `catalog-replay-incomplete` on an empty graph is expected and does **not** block writes.
 
