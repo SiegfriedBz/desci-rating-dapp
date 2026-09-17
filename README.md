@@ -245,9 +245,12 @@ Two ways to drive it, in increasing order of realism:
 1. **No tunnel.** Inject the `RatingController/phase1.requested` event by hand from the Inngest Dev Server UI. This exercises everything except the webhook route itself.
 2. **`ngrok http 3000`**, with an Alchemy webhook pointed at `https://<host>/api/webhooks/alchemy`. On the free plan the host changes every restart, so the webhook URL has to be updated each time.
 
-Two things must line up or the route rejects the POST. `ALCHEMY_BASE_SEPOLIA_WH_SK` in your `.env` must be *that* webhook's signing secret, otherwise HMAC verification returns `401`; and the webhook must watch the same contract as your `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS`, otherwise every log is skipped by the address filter and you get a silent `200` with nothing happening.
+An Alchemy webhook is a dashboard rule with three parts: the contract it watches, the URL it POSTs to, and its own signing secret. Two values in your `.env` have to agree with the rule that posts to your tunnel, and they fail in opposite ways:
 
-**Do not add a second webhook watching the develop contract while the Preview one is enabled.** Both oracles would then react to the same request and mint two R-KAs for one paper — the interference the [per-environment split](#3--vercel) exists to prevent. Either repoint the existing develop webhook at your ngrok URL for the session, or deploy your own `RatingController` (`pnpm contracts:deploy:base-sepolia`) and set `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS` to it, which is what the variable is for.
+- `ALCHEMY_BASE_SEPOLIA_WH_SK` must be **that rule's** secret. The route recomputes an HMAC over the raw body and compares it to Alchemy's header, so a mismatched secret returns `401` on every POST. Loud and easy to spot.
+- `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS` must be **the contract that rule watches**. After the signature passes, the route discards every log not emitted by that address, so a mismatch returns `200` and does nothing at all. This is the silent one, and it looks like the tunnel works but the oracle never starts.
+
+**One rule per contract, always.** Alchemy delivers an event to every rule that matches it, and a rule keys on a contract, not on an environment. Add a rule for your ngrok URL watching the develop contract while Preview's rule still watches it, and a single `requestPhase1` fans out to both: two oracles score the same paper, two R-KAs get minted, and whichever fulfills second finds the request already completed. That is the collision the [per-environment split](#3--vercel) removed, reintroduced by hand. Either repoint the existing develop rule at your ngrok URL for the session, or deploy your own `RatingController` (`pnpm contracts:deploy:base-sepolia`), set `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS` to it and watch that one instead — which is what the variable makes easy.
 
 ### The local DKG V10 node
 
