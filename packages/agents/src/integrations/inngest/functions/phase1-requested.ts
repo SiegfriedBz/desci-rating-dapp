@@ -21,8 +21,16 @@ export const phase1RequestedFunction = inngest.createFunction(
   },
   { event: InngestEvent.Phase1Requested },
   async ({ event, step }) => {
-    const { targetUal, requestId, chainId } = event.data;
+    const { targetUal, requestId, chainId, transactionHash } = event.data;
     const contextGraphId = env.DKG_CONTEXT_GRAPH_ID;
+
+    // Stable across attempts of the mint step, so a retry that follows a lost
+    // response reuses the first R-KA instead of minting another. The
+    // transaction hash is in the key because requestId is keccak256(targetUal)
+    // on its own: a cancelled-and-retried request carries the same requestId
+    // but is scored again, and reusing the first R-KA would record the new
+    // score against an asset holding the old one.
+    const rKaName = `desci-rating-${requestId}-${transactionHash}`;
 
     const bindings = await step.run("fetch-target-ka", async () => {
       const client = await createDkgClient();
@@ -50,6 +58,7 @@ export const phase1RequestedFunction = inngest.createFunction(
         const result = await client.publishRating({
           contextGraphId,
           targetUal,
+          name: rKaName,
           score: evaluation.score,
           author: PHASE_ONE_AUTHOR,
           description: evaluation.rationale.trim(),
