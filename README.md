@@ -231,9 +231,23 @@ pnpm dkg:start      # DKG daemon on 127.0.0.1:9200
 pnpm grobid:up      # GROBID container on 127.0.0.1:8070
 pnpm dev            # Next.js on :3000
 pnpm inngest:dev    # Inngest Dev Server → http://localhost:3000/api/inngest
+ngrok http 3000     # only to test Rate KA locally — see below
 ```
 
 GROBID is ready when `curl -s http://127.0.0.1:8070/api/isalive` returns `true`. The image is `grobid/grobid:0.8.2-crf` (~500 MB, CPU-only); the Compose file uses `network_mode: host` (Linux), so on Docker Desktop replace it with `ports: ["8070:8070"]`.
+
+### Receiving chain events locally
+
+Publish KA needs no tunnel. Rate KA does: the oracle only starts when Alchemy Notify POSTs to `/api/webhooks/alchemy`, and Alchemy needs a public HTTPS URL.
+
+Two ways to drive it, in increasing order of realism:
+
+1. **No tunnel.** Inject the `RatingController/phase1.requested` event by hand from the Inngest Dev Server UI. This exercises everything except the webhook route itself.
+2. **`ngrok http 3000`**, with an Alchemy webhook pointed at `https://<host>/api/webhooks/alchemy`. On the free plan the host changes every restart, so the webhook URL has to be updated each time.
+
+Two things must line up or the route rejects the POST. `ALCHEMY_BASE_SEPOLIA_WH_SK` in your `.env` must be *that* webhook's signing secret, otherwise HMAC verification returns `401`; and the webhook must watch the same contract as your `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS`, otherwise every log is skipped by the address filter and you get a silent `200` with nothing happening.
+
+**Do not add a second webhook watching the develop contract while the Preview one is enabled.** Both oracles would then react to the same request and mint two R-KAs for one paper — the interference the [per-environment split](#3--vercel) exists to prevent. Either repoint the existing develop webhook at your ngrok URL for the session, or deploy your own `RatingController` (`pnpm contracts:deploy:base-sepolia`) and set `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS` to it, which is what the variable is for.
 
 ### The local DKG V10 node
 
@@ -251,8 +265,6 @@ curl -s http://127.0.0.1:9200/api/wallets/balances \
 The default `~/.dkg/config.json` points `chain.rpcUrl` at public Base Sepolia endpoints — exactly what [the RPC proxy section](#2--why-a-local-rpc-proxy-is-required) explains cannot serve authority resolution reliably. A local publish failing with `authority-resolution-failed` is that limit, not a broken graph. Two ways out: run the same proxy locally and point `chain.rpcUrl` at `http://127.0.0.1:8545`, or skip the local daemon and set `DKG_API_URL` / `DKG_AUTH_TOKEN` to the hosted node — in which case `DKG_CONTEXT_GRAPH_ID` must be that node's **full** graph id, and your publishes land in the staging graph rather than a local one.
 
 The landing page probes the daemon once per request (`probeDkgDaemon` → `GET /api/status`, wrapped in React `cache()`). When it is unreachable the catalog and the Publish button degrade to a "DKG connection not available" state instead of erroring.
-
-Alchemy Notify needs a public HTTPS URL. Locally, use `ngrok http 3000` and point the webhook at `https://<host>/api/webhooks/alchemy`, or inject the `RatingController/phase1.requested` event directly from the Inngest Dev Server UI.
 
 ### CLI-only workflows
 
