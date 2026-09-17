@@ -20,6 +20,9 @@
     "deploy:base-sepolia": "forge script script/RatingController.s.sol:RatingControllerScript --rpc-url base_sepolia --broadcast --verify --private-key $PRIVATE_KEY -vvvv",
     "clean": "forge clean && rm -rf dist out"
   },
+  "dependencies": {
+    "@desci/env": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^7.0.2"
   }

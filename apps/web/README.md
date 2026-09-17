@@ -73,3 +73,5 @@ Reown AppKit + wagmi, Base Sepolia only (`networks = [baseSepolia]`, `expectedCh
 Styling is Tailwind CSS v4 via `@tailwindcss/postcss`, with theme tokens in `src/app/globals.css`. Fonts are `next/font/google`: Inter (body), Space Grotesk (headings), JetBrains Mono (code).
 
 `vercel.json` installs from the repo root and builds with `pnpm turbo run build --filter=web`. See the [Vercel notes in the root README](../../README.md#production-setup) for the project settings and the required production environment.
+
+Production and Preview are **isolated environments**, not one deployment with two URLs: `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS`, `DKG_CONTEXT_GRAPH_ID` and `ALCHEMY_BASE_SEPOLIA_WH_SK` each hold a different value per environment, so a rating made on one is invisible to the other. Values and rationale are in the root README's [Vercel section](../../README.md#3--vercel).

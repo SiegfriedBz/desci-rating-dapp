@@ -32,7 +32,7 @@ Library entry (`index.ts`) re-exports `createDkgClient`, publication/rating KA h
 
 - `types.ts` — `PublicationMetadata`, publication/rating params and results, `PublishAssertionDeps`, `TargetAssetBinding`, `RatingBinding` (+ `ratingBindingSchema`)
 - `vocab.ts` — schema.org, RDF, and DEO predicate/class IRIs used when building and querying quads, plus the project's own `desci:` terms (`DESCI_OBSERVED_EVIDENCE`, `DESCI_MISSING_EVIDENCE`) for the rigor signals schema.org has no predicate for
-- `ual.ts` — `parseUal` / `isUal`, the single strict definition of the `did:dkg:base:{chainId}/{kasAddress}/{tokenId}` grammar, and `ualFromVerifiableMemoryGraphIri` which recovers that UAL from a SPARQL `GRAPH` IRI
+- `ual.ts` — `parseUal` / `isUal`, the single strict definition of the `did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}` grammar, and `ualFromVerifiableMemoryGraphIri` which recovers that UAL from a SPARQL `GRAPH` IRI
 
 ### `src/helpers/`
 
@@ -47,7 +47,7 @@ Shared utilities (no daemon I/O):
 
 Mint a publication Target KA: `buildPublicationGraph` (`graph.ts`) from `PublicationMetadata`, `publishPublicationKa` (`publish.ts`) via a `publishAssertion` dependency. When `PublicationMetadata.pdfCid` is set (caller pins via `@desci/agents/ipfs` before `runPdfToKaAgent`), quads include `schema:encoding` / `schema:contentUrl` as a content-addressed `ipfs://…` URI — this package does not call Pinata or IPFS gateways. `pdfIpfsUrlFromBindings` (`pdf-url.ts`) reads that URL back from assertion bindings.
 
-`query.ts` — `queryPublicationsWithRatings(query, contextGraphId)` powers the web catalog. It runs two SPARQL queries in parallel (`schema:ScholarlyArticle` publications, and `schema:about` + `schema:ratingValue` ratings), then joins them on the target UAL. Each UAL is derived from the verifiable-memory graph IRI by `ualFromVerifiableMemoryGraphIri` → `did:dkg:base:{chainId}/{kasAddress}/{tokenId}`. Bindings: `pub`, `subjectUri`, `title`, `rKaUal`, `ratingValue`.
+`query.ts` — `queryPublicationsWithRatings(query, contextGraphId)` powers the web catalog. It runs two SPARQL queries in parallel (`schema:ScholarlyArticle` publications, and `schema:about` + `schema:ratingValue` ratings), then joins them on the target UAL. Each UAL is derived from the verifiable-memory graph IRI by `ualFromVerifiableMemoryGraphIri` → `did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}`. Bindings: `pub`, `subjectUri`, `title`, `rKaUal`, `ratingValue`.
 
 ### `src/rating-ka/`
 

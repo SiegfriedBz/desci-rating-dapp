@@ -1,7 +1,12 @@
 import { BASE_SEPOLIA_CHAIN_ID } from "@desci/shared";
 
 /**
- * Universal Asset Locator grammar: `did:dkg:base:{chainId}/{kasAddress}/{tokenId}`.
+ * Universal Asset Locator grammar: `did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}`.
+ *
+ * The middle segment is the publishing **DKG node agent's** wallet address —
+ * not a contract, and unrelated to `@desci/agents` or `ORACLE_AGENT`.
+ * `eth_getCode` on ours returns `0x` across three Base Sepolia providers, and
+ * it is the same address V10 uses to namespace context graph ids.
  *
  * Strict by design — the only UALs the app can resolve are ones the DKG
  * actually minted, so anything else should fail rather than 404 late.
@@ -10,8 +15,8 @@ const UAL_PATTERN = /^did:dkg:base:(\d+)\/(0x[0-9a-fA-F]{40})\/(\d+)$/;
 
 export type ParsedUal = {
   chainId: number;
-  /** Knowledge Asset Storage contract, as written in the UAL (not checksummed). */
-  kasAddress: string;
+  /** Publishing DKG node agent's wallet, as written in the UAL (not checksummed). */
+  dkgAgentAddress: string;
   /** Kept as a string to avoid precision loss; coerce where you need to sort. */
   tokenId: string;
 };
@@ -22,10 +27,10 @@ export function parseUal(value: string): ParsedUal | null {
   if (!match) {
     return null;
   }
-  const [, chainId, kasAddress, tokenId] = match;
+  const [, chainId, dkgAgentAddress, tokenId] = match;
   return {
     chainId: Number(chainId),
-    kasAddress: kasAddress!,
+    dkgAgentAddress: dkgAgentAddress!,
     tokenId: tokenId!,
   };
 }
@@ -38,8 +43,8 @@ export function isUal(value: string): boolean {
  * Derive the on-chain UAL from a verifiable-memory named-graph IRI.
  *
  * Observed DKG V10 shape:
- *   did:dkg:context-graph:{cg}/_verifiable_memory/{kasAddress}/{tokenId}
- * → did:dkg:base:{chainId}/{kasAddress}/{tokenId}
+ *   did:dkg:context-graph:{cg}/_verifiable_memory/{dkgAgentAddress}/{tokenId}
+ * → did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}
  *
  * This is how a SPARQL row learns which minted asset it came from, and so how
  * both the catalog and the ratings query recover an asset's routable identity.
