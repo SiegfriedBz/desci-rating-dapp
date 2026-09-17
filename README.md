@@ -428,6 +428,21 @@ python3 -c "import json;print(json.load(open('/home/ubuntu/.dkg/config.json'))['
 
 That last one is the one people forget: a graph missing from `contextGraphs` works until the next restart and then silently stops being subscribed.
 
+#### Proving the two graphs are isolated
+
+`dkg:fetch-asset` takes the graph id as its **second** argument, so the same UAL can be read from both graphs against the same node and token — everything except the graph is held constant:
+
+```bash
+UAL='did:dkg:base:84532/0x38b548ca70e61055a936ef84c2ff65b8cca22dd8/5'
+PREFIX=0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8
+pnpm dkg:fetch-asset "$UAL" "$PREFIX/verisci"        # staging → property bindings
+pnpm dkg:fetch-asset "$UAL" "$PREFIX/verisci-prod"   # production → "No triples found"
+```
+
+Two things that look like bugs and are not. `DKG_CONTEXT_GRAPH_ID` must still hold a valid value even when you pass the argument, because `@desci/env` validates at import time, long before `main()` reads argv — an unset variable aborts the script before it can use your override. And a variable exported in your shell wins over `--env-file`, so `unset DKG_CONTEXT_GRAPH_ID` before relying on `.env`. Note also that `.env` is read by Node, not bash: `UAL=…` there sets it for the script, not for `$UAL` in your prompt.
+
+An empty result only proves isolation because the staging run in the same pair returned real triples. A wrong token or a non-existent graph errors out rather than reporting nothing, which is what makes "No triples found" a real answer instead of a silent failure.
+
 ### 3 — Vercel
 
 Set the project **Root Directory** to `apps/web` with "include files outside this directory" enabled, Framework Preset **Next.js**, and leave **Output Directory** empty. [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and builds with `pnpm turbo run build --filter=web`.
