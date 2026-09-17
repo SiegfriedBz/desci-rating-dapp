@@ -73,9 +73,13 @@ export async function processRatingControllerEvent(
         targetUal: asString(decoded.args["targetUal"], "targetUal"),
         requester: asHex(decoded.args["requester"], "requester"),
       };
-      // Include transactionHash so re-requests on the same UAL (after
-      // cancelPendingRequest) produce a distinct event id and are not
-      // silently deduplicated by Inngest's 24h idempotency window.
+      // The id is Inngest's idempotency key, and it is set because Alchemy can
+      // deliver the same log more than once: both deliveries produce this same
+      // string, so only one run starts. transactionHash and logIndex are part
+      // of it because requestId is keccak256(targetUal) on its own, which stays
+      // identical across a cancelPendingRequest and a fresh requestPhase1 on
+      // that UAL — a genuine second request that must not be deduplicated away
+      // by the 24h idempotency window.
       await inngest.send({
         id: `${requestId}-phase1-${transactionHash}-${logIndex}`,
         name: InngestEvent.Phase1Requested,

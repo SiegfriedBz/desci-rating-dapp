@@ -71,7 +71,7 @@ Functions:
 
 - `requestPhase1(targetUal)` — non-empty UAL; `phase == Unrated`; not already pending. Sets `isPending` and emits `Phase1Requested(requestId, targetUal, requester)`.
 - `fulfillPhase1(targetUal, score, rKaUal)` — `onlyOracleAgent`; pending; `phase == Unrated`; `score` in `[0, 100]`; non-empty `rKaUal`. Sets `Phase1Completed`, clears pending, writes `phase1Score` and `rKaUal`. Emits `Phase1Fulfilled`.
-- `cancelPendingRequest(targetUal)` — owner or oracle agent; pending. Clears `isPending` without changing phase. Emits `RequestCancelled`.
+- `cancelPendingRequest(targetUal)` — owner or oracle agent; pending. Clears `isPending` without changing phase. Emits `RequestCancelled`. **Edge case worth knowing:** because phase stays `Unrated`, a fresh `requestPhase1` on that UAL is allowed and carries the same `requestId`. If the cancelled run had already minted its R-KA, the retry mints a second one (the off-chain name keys on the request's transaction hash, which differs), and only the newer R-KA is recorded here. The older one is orphaned in the context graph; the catalog hides it by showing the newest R-KA per publication.
 - `setOracleAgent(_newOracleAgent)` — `onlyOwner`; non-zero. Emits `OracleAgentUpdated`.
 - `getRatingByUal` / `getRating` — view; zeroed record if never requested.
 

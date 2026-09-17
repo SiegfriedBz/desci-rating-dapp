@@ -47,7 +47,7 @@ Shared utilities (no daemon I/O):
 
 Mint a publication Target KA: `buildPublicationGraph` (`graph.ts`) from `PublicationMetadata`, `publishPublicationKa` (`publish.ts`) via a `publishAssertion` dependency. When `PublicationMetadata.pdfCid` is set (caller pins via `@desci/agents/ipfs` before `runPdfToKaAgent`), quads include `schema:encoding` / `schema:contentUrl` as a content-addressed `ipfs://…` URI — this package does not call Pinata or IPFS gateways. `pdfIpfsUrlFromBindings` (`pdf-url.ts`) reads that URL back from assertion bindings.
 
-`query.ts` — `queryPublicationsWithRatings(query, contextGraphId)` powers the web catalog. It runs two SPARQL queries in parallel (`schema:ScholarlyArticle` publications, and `schema:about` + `schema:ratingValue` ratings), then joins them on the target UAL. Each UAL is derived from the verifiable-memory graph IRI by `ualFromVerifiableMemoryGraphIri` → `did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}`. Bindings: `pub`, `subjectUri`, `title`, `rKaUal`, `ratingValue`.
+`query.ts` — `queryPublicationsWithRatings(query, contextGraphId)` powers the web catalog. It runs two SPARQL queries in parallel (`schema:ScholarlyArticle` publications, and `schema:about` + `schema:ratingValue` ratings), then joins them on the target UAL. Each UAL is derived from the verifiable-memory graph IRI by `ualFromVerifiableMemoryGraphIri` → `did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}`. Bindings: `pub`, `subjectUri`, `title`, `rKaUal`, `ratingValue`. One row per publication UAL. A publication normally has exactly one R-KA, so the ratings join keeps the highest token id only as a tie-break for the cancel-and-retry edge case (see the function's header comment), where the orphaned R-KA also sits in the graph and the contract points at the newer mint.
 
 ### `src/rating-ka/`
 
@@ -75,7 +75,7 @@ One module per daemon route used by this package:
 - `assets.ts` — UAL lookup (`GET /api/knowledge-assets/{name}`), create (`POST /api/knowledge-assets`), on-chain publish (`POST /api/knowledge-assets/{name}/vm/publish`), assertion-graph dump (`getAssetQuadsByUal`)
 - `query.ts` — `POST /api/query`
 
-`publishAssertion` is idempotent **by KA name**: it short-circuits to the existing UAL when the name already resolves, retries up to 4 times on transient access-policy errors, and recovers from “already exists” / “unfinished promote” responses by re-reading the UAL. Note that the default generated names (`desci-pub-*`, `desci-rating-*`) are fresh UUIDs, so idempotency only helps when the caller passes an explicit `name`.
+`publishAssertion` is idempotent **by KA name**: it short-circuits to the existing UAL when the name already resolves, retries up to 4 times on transient access-policy errors, and recovers from “already exists” / “unfinished promote” responses by re-reading the UAL. The default generated names are fresh UUIDs, so idempotency only works when the caller passes an explicit `name` — and both Inngest callers do: `publish-pdf` keys the publication on the Inngest event id, `phase1-requested` keys the rating on the on-chain `requestId` plus the transaction hash of the request. The transaction hash is part of that key because `requestId` is `keccak256(targetUal)`, which is identical across a cancelled-and-retried request — a run that must mint its own R-KA rather than reuse the one holding the previous score.
 
 ### `scripts/`
 
