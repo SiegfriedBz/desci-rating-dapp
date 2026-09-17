@@ -168,6 +168,8 @@ flowchart TD
 
 The `phase1-requested` function retries 3 times with concurrency 5 global / 1 per `requestId`. It retries on `TargetAssetNotIndexedError` to absorb DKG indexing lag, and `fulfillPhase1OnChain` reads `getRatingByUal` first, returning `already_fulfilled` without sending a transaction if the record is already `Phase1Completed`. The UI warns after 90 s (`ORACLE_STALL_MS`) if the oracle has not fulfilled.
 
+**One on-chain request mints exactly one R-KA.** The mint is named `desci-rating-<requestId>-<transactionHash>`, and `publishAssertion` is idempotent by KA name, so however many times the step is retried — including when Vercel kills the invocation while the daemon is still publishing — every attempt converges on the same R-KA. Combined with the contract refusing a second `requestPhase1` once a UAL is rated, a paper ends up with exactly one R-KA. The single exception is the cancel-and-retry case in [Known limitations](#known-limitations), which mints a second one on purpose.
+
 ---
 
 ## Repository layout
@@ -633,6 +635,7 @@ R-KA lifetime: mint once in Phase 1 (`rKaUal` stored on-chain); Phases 2 and 3 `
 - **No authentication or rate limiting.** The `uploadAndPin` server action validates only PDF type and a 5 MB cap. Addressed by Roadmap item 1.
 - **Single-chain.** Only Base Sepolia (`84532`) is in `RATING_CONTROLLER_ADDRESSES`, which is what `getRatingControllerAddress` guards against; it throws for any other chain id even though the address itself comes from the environment.
 - **Oracle is a single point of failure.** One key signs every `fulfillPhase1`. If it stalls, requests stay `isPending` until `owner` or `oracleAgent` cancels them.
+- **Cancel-and-retry orphans an R-KA.** A run that minted its R-KA but died before `fulfillPhase1` leaves the UAL locked and `Unrated`. Cancelling the lock and requesting again mints a *second* R-KA — deliberately, since the retry re-scores the paper and the new score must not be attached to the old asset. Both R-KAs stay in the context graph, only the newer is recorded on chain, and the catalog hides the older by showing the newest R-KA per publication. This is the one case where a paper has more than one R-KA; nothing deletes the orphan.
 - **Scoring is not calibrated.** Phase-1 heuristics are deliberately rough pending a labelled dataset.
 - **Single DKG node.** The app depends on one edge node; there is no failover.
 - **Test coverage is Foundry-only.**

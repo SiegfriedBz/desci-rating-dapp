@@ -36,6 +36,14 @@ export type SparqlQueryFn = (
  *
  * R-KA graphs (from the rating query) are excluded so a rating mint never
  * appears as a publication row.
+ *
+ * Ratings collapse to one per publication, newest token id winning. Normally
+ * there is only one: `RatingController` refuses a second `requestPhase1` once
+ * a UAL is rated, and `phase1-requested` names the mint after the request so
+ * its retries reuse it. The edge case that needs the tie-break is a run that
+ * minted but died before `fulfillPhase1` — clearing the lock with
+ * `cancelPendingRequest` and requesting again mints a second R-KA, and only
+ * that newer one is recorded on chain.
  */
 export async function queryPublicationsWithRatings(
   query: SparqlQueryFn,
@@ -89,6 +97,8 @@ export async function queryPublicationsWithRatings(
     ratingUals.add(parsed.ual);
     const ratingValue = literalLexicalForm(ratingValueRaw);
     const prev = ratingsByAbout.get(aboutIri);
+    // Newest wins: after a cancel-and-retry the graph holds the orphaned R-KA
+    // too, and the contract points at the later mint. See the header note.
     if (!prev || parsed.tokenId > prev.tokenId) {
       ratingsByAbout.set(aboutIri, {
         ratingUal: parsed.ual,
