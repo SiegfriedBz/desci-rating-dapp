@@ -20,16 +20,26 @@ This repo attaches a rating to any KA without modifying it: an independent Ratin
 
 ## Live deployment
 
-| Resource | Value |
+Two isolated environments share the node host but nothing else: separate `RatingController` deploys and separate context graphs, so neither can rate a KA the other already rated.
+
+| Resource | Production | Preview / staging |
+|---|---|---|
+| Dapp | <https://desci-rating-dapp.vercel.app> | Vercel preview URL per branch |
+| Git branch | `main` | `develop` and feature branches |
+| `RatingController` | [`0x88b467bf29a88b5a7b6d351f74b26a18baf8f373`](https://sepolia.basescan.org/address/0x88b467bf29a88b5a7b6d351f74b26a18baf8f373) | [`0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96`](https://sepolia.basescan.org/address/0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96) |
+| Context graph | `0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci-prod` (registry id `456`) | `0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci` (registry id `433`) |
+| Alchemy webhook | watches the production contract | watches the develop contract |
+
+The address is not compiled in: it comes from `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS`, and `packages/contracts/ts/deployments.ts` is only a record of the last deploy.
+
+| Shared resource | Value |
 |---|---|
-| Dapp | <https://desci-rating-dapp.vercel.app> |
-| `RatingController` | [`0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96`](https://sepolia.basescan.org/address/0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96) |
 | Chain | Base Sepolia (`84532`) |
 | DKG node | `https://verisci-dkg.duckdns.org` — OriginTrail `10.0.16`, `nodeRole: edge`, testnet |
 | GROBID | `https://verisci-grobid.duckdns.org` (secret path prefix) |
-| Context graph | `0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci` (on-chain registry id `433`) |
 | Jobs | Inngest Cloud → `POST /api/inngest` |
-| Chain events | Alchemy Notify → `POST /api/webhooks/alchemy` |
+
+Token ids are minted by OriginTrail's shared contract, so numbering is global and each environment shows gaps. That is expected, not a symptom.
 
 | Capability | State |
 |---|---|
@@ -225,6 +235,21 @@ pnpm inngest:dev    # Inngest Dev Server → http://localhost:3000/api/inngest
 
 GROBID is ready when `curl -s http://127.0.0.1:8070/api/isalive` returns `true`. The image is `grobid/grobid:0.8.2-crf` (~500 MB, CPU-only); the Compose file uses `network_mode: host` (Linux), so on Docker Desktop replace it with `ports: ["8070:8070"]`.
 
+### The local DKG V10 node
+
+`pnpm dkg:init` (`dkg init --network testnet`) creates `~/.dkg` with `config.json`, the agent key, and the daemon's admin token in `~/.dkg/auth.token`. `@desci/dkg-client` resolves both the port and that token by itself, which is why `DKG_API_URL` and `DKG_AUTH_TOKEN` stay unset locally. Verify with `dkg status` and `curl -s http://127.0.0.1:9200/api/status`.
+
+**The context graph needs no manual creation locally.** Every publish calls `ensureContextGraph` first, which POSTs `/api/context-graph/create` with the id exactly as written, so `DKG_CONTEXT_GRAPH_ID=verisci` is enough. The trap is mixing that with the CLI: **a bare id stays bare over HTTP, while `dkg context-graph create` auto-prefixes your agent address.** If you do create it from the CLI, copy the full `<agent-address>/verisci` it prints into `.env`, or the two paths will disagree about which graph you mean. Full procedure, including on-chain registration: [Creating and registering a context graph](#creating-and-registering-a-context-graph).
+
+**Publishing from a local daemon still spends real Base Sepolia gas.** The node's own wallet pays for the KA mint, and the first publish into an unregistered graph also pays to register it. Fund that wallet, and check it with the daemon's own token:
+
+```bash
+curl -s http://127.0.0.1:9200/api/wallets/balances \
+  -H "Authorization: Bearer $(cat ~/.dkg/auth.token)" | python3 -m json.tool
+```
+
+The default `~/.dkg/config.json` points `chain.rpcUrl` at public Base Sepolia endpoints — exactly what [the RPC proxy section](#2--why-a-local-rpc-proxy-is-required) explains cannot serve authority resolution reliably. A local publish failing with `authority-resolution-failed` is that limit, not a broken graph. Two ways out: run the same proxy locally and point `chain.rpcUrl` at `http://127.0.0.1:8545`, or skip the local daemon and set `DKG_API_URL` / `DKG_AUTH_TOKEN` to the hosted node — in which case `DKG_CONTEXT_GRAPH_ID` must be that node's **full** graph id, and your publishes land in the staging graph rather than a local one.
+
 The landing page probes the daemon once per request (`probeDkgDaemon` → `GET /api/status`, wrapped in React `cache()`). When it is unreachable the catalog and the Publish button degrade to a "DKG connection not available" state instead of erroring.
 
 Alchemy Notify needs a public HTTPS URL. Locally, use `ngrok http 3000` and point the webhook at `https://<host>/api/webhooks/alchemy`, or inject the `RatingController/phase1.requested` event directly from the Inngest Dev Server UI.
@@ -362,25 +387,65 @@ Two graphs now backfill through the single proxy, so `authority-resolution-faile
 
 `accessPolicy` is the field that matters: once it holds a value, writes are accepted. A `stableReason` of `catalog-replay-incomplete` on an empty graph is expected and does **not** block writes.
 
+#### Verifying both graphs are set up and running
+
+`/api/status` is unauthenticated through Caddy, so the check that matters needs no SSH — run it from anywhere, or against `http://127.0.0.1:9200` for a local daemon:
+
+```bash
+curl -s https://verisci-dkg.duckdns.org/api/status | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+for g in (d.get('rfc64Catalog') or {}).get('contextGraphs') or []:
+    print(g.get('contextGraphId') or g.get('id'))
+    for k in ['phase','authorityState','policySource','accessPolicy','publishPolicy','stableReason']:
+        print(' ',k,'=',g.get(k))
+"
+```
+
+A graph is ready for writes when it reports `policySource = finalized-chain`, `accessPolicy = 0`, `publishPolicy = 1` and `stableReason = None`. `policySource = owner-signed-unregistered` means it exists but was never registered on chain; `authorityState = blocked` means writes are refused. `phase = resolving-authority` is normal — the working graph sits there too, because the daemon re-resolves periodically.
+
+Three further checks on the node itself, in order of usefulness:
+
+```bash
+systemctl is-active rpc-proxy dkg   # the proxy must be up, or nothing resolves
+dkg context-graph list              # both ids present, Type "user"
+python3 -c "import json;print(json.load(open('/home/ubuntu/.dkg/config.json'))['contextGraphs'])"
+```
+
+That last one is the one people forget: a graph missing from `contextGraphs` works until the next restart and then silently stops being subscribed.
+
 ### 3 — Vercel
 
 Set the project **Root Directory** to `apps/web` with "include files outside this directory" enabled, Framework Preset **Next.js**, and leave **Output Directory** empty. [`apps/web/vercel.json`](apps/web/vercel.json) installs from the repo root and builds with `pnpm turbo run build --filter=web`.
 
 Production branch is `main`. Scope these to **Preview as well as Production** — the build validates the catalog, so a Preview deployment missing them fails instead of rendering an empty catalog:
 
-- `DKG_API_URL` + `DKG_AUTH_TOKEN` pointing at the hosted node, and the full `DKG_CONTEXT_GRAPH_ID`
+- `DKG_API_URL` + `DKG_AUTH_TOKEN` pointing at the hosted node
 - `GROBID_URL` including the secret path prefix
 - `GOOGLE_API_KEY`, `PINATA_JWT`, `IPFS_GATEWAY_URL`
 - `BASE_SEPOLIA_RPC_URL`, `ORACLE_AGENT_PRIVATE_KEY`
-- `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `ALCHEMY_BASE_SEPOLIA_WH_SK`
+- `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`
 - `NEXT_PUBLIC_APP_URL` set to the deployed origin, and `NEXT_PUBLIC_REOWN_PROJECT_ID`
+
+Three more **differ per environment**, and getting one wrong is what makes the two deployments interfere:
+
+| Variable | Production | Preview |
+|---|---|---|
+| `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS` | `0x88b467bf29a88b5a7b6d351f74b26a18baf8f373` | `0xe83d248193e5cdb0db89ecd113feb1c4d0fe9e96` |
+| `DKG_CONTEXT_GRAPH_ID` | `0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci-prod` | `0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8/verisci` |
+| `ALCHEMY_BASE_SEPOLIA_WH_SK` | signing secret of the webhook watching `0x88b4…f373` | signing secret of the webhook watching `0xe83d…9e96` |
+
+Both must be set locally too: the repo-root `.env` holds the Preview pair, because `ts/deployments.ts` records the **last deploy** (production) rather than the runtime address.
+
+Why each knob is needed rather than just the contract: `getRequestId` is `keccak256(targetUal)`, so the same UAL keys the same storage slot in both contracts, but each contract has its own separate storage for it. Sharing one graph across two contracts would let the same KA be rated once per environment, render the paper twice in the catalog, and leave each environment contradicting the other about whether it is rated.
+
+Case does not matter in the address: the webhook route and every read run it through viem's `getAddress` first.
 
 `@desci/contracts` builds with `tsc` over the committed `ts/` ABI files, because Foundry is not available on Vercel. After Solidity changes, regenerate locally with `pnpm contracts:build` and commit `packages/contracts/ts/`.
 
 ### 4 — Wire the external services
 
 - **Inngest Cloud** — sync the app so `/api/inngest` registers all five functions.
-- **Alchemy Notify** — watch the `RatingController` address on Base Sepolia and POST to `/api/webhooks/alchemy`.
+- **Alchemy Notify** — **one webhook per environment**, each watching that environment's `RatingController` and POSTing to that deployment's `/api/webhooks/alchemy`. Both can stay enabled permanently: the route skips logs from any other address, and each webhook has its own signing secret, so a POST reaching the wrong deployment fails HMAC verification and returns `401` rather than starting a second oracle. Repeated 401s in the Vercel logs are the signature of a swapped secret.
 - **Reown** — add the deployed origin to Allowed Origins in [Reown Cloud](https://dashboard.reown.com), matching `NEXT_PUBLIC_APP_URL`.
 
 ---
@@ -395,7 +460,7 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 
 | Variable | Required? | Purpose |
 |---|---|---|
-| `DKG_CONTEXT_GRAPH_ID` | yes | Context graph the Inngest workers write to and the web catalog reads |
+| `DKG_CONTEXT_GRAPH_ID` | yes | Context graph the Inngest workers write to and the web catalog reads. **Differs per environment** — see [Vercel](#3--vercel) |
 | `DKG_API_URL` / `DKG_AUTH_TOKEN` | no | Daemon endpoint and bearer token. Omit locally to resolve from `~/.dkg` |
 | `DKG_API_PORT` / `DKG_HOME` | no | Default `9200` and `~/.dkg` |
 | `DKG_KA_NAME` / `DKG_UAL` / `DKG_SUBJECT_URI` / `DKG_PDF_PATH` | no | CLI script arguments; each also accepts argv |
@@ -407,11 +472,12 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 | `GEMINI_MODEL` | no | Default `gemini-3.5-flash-lite` |
 | `BASE_SEPOLIA_RPC_URL` | yes | `fulfillPhase1` and all server-side contract reads |
 | `ORACLE_AGENT_PRIVATE_KEY` | yes | Viem signer for `fulfillPhase1` — must match on-chain `oracleAgent()`. Not the deployer key. Validated as 32-byte hex and normalised to `0x`-prefixed |
-| `ALCHEMY_BASE_SEPOLIA_WH_SK` | yes | HMAC secret for `/api/webhooks/alchemy` |
+| `ALCHEMY_BASE_SEPOLIA_WH_SK` | yes | HMAC secret for `/api/webhooks/alchemy`. **Differs per environment** — one webhook per contract, each with its own secret |
 | `INNGEST_SIGNING_KEY` | no | Inngest Cloud only; the local Dev Server needs none |
 | `INNGEST_API_BASE_URL` | no | REST base for publish-status polling. Defaults to `http://localhost:8288` in dev, `https://api.inngest.com` in production |
 | `INNGEST_ENV` | no | Inngest environment the publish-status poll reads. Derived from `VERCEL_GIT_COMMIT_REF` when unset, matching what the SDK sends |
 | `NEXT_PUBLIC_APP_URL` | yes | Reown AppKit `metadata.url`; must match the deployed origin |
+| `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS` | yes | The `RatingController` every read and write targets, resolved by `getRatingControllerAddress` in `@desci/contracts`. **Differs per environment.** `NEXT_PUBLIC_` because two call sites are client components. Required with no fallback on purpose: an optional value would let a misconfigured deployment silently talk to whichever contract was deployed last |
 | `NEXT_PUBLIC_REOWN_PROJECT_ID` | no | Reown AppKit. Without it the app builds and renders, but wallet connect is disabled |
 | `NEXT_PUBLIC_CONTACT_PORTFOLIO_URL` / `NEXT_PUBLIC_CONTACT_LINKEDIN_URL` | no | Footer links; omit either to hide it |
 | `PRIVATE_KEY` | — | Foundry deployer / contract owner. **Not in `@desci/env`** — local deploy only, never Vercel |
@@ -471,6 +537,8 @@ LLM: LangChain `ChatGoogleGenerativeAI` + Zod structured output. No LangGraph.
 
 `forge build` runs `scripts/export-abi.mjs`, which writes `ts/ratingControllerAbi.ts` and `ts/deployments.ts` from the Forge artifact and the Base Sepolia broadcast file. Do not edit these by hand.
 
+The address consumers import comes from hand-written `ts/address.ts`, which the generator cannot clobber: `getRatingControllerAddress` keeps the chain-id guard but returns `NEXT_PUBLIC_RATING_CONTROLLER_ADDRESS`. The generated address is a deploy record only, so regenerating it after a deploy never changes what a running environment talks to.
+
 ### `@desci/env` / `@desci/shared`
 
 `@desci/env`: fail-fast typed env via `@t3-oss/env-nextjs`, split into a server entry (`@desci/env`) and a client entry (`@desci/env/client`, `NEXT_PUBLIC_*` only) so server variable names never reach the browser bundle.
@@ -529,7 +597,7 @@ R-KA lifetime: mint once in Phase 1 (`rKaUal` stored on-chain); Phases 2 and 3 `
 ## Known limitations
 
 - **No authentication or rate limiting.** The `uploadAndPin` server action validates only PDF type and a 5 MB cap. Addressed by Roadmap item 1.
-- **Single-chain.** Only Base Sepolia (`84532`) is in `RATING_CONTROLLER_ADDRESSES`; `getRatingControllerAddress` throws for any other chain.
+- **Single-chain.** Only Base Sepolia (`84532`) is in `RATING_CONTROLLER_ADDRESSES`, which is what `getRatingControllerAddress` guards against; it throws for any other chain id even though the address itself comes from the environment.
 - **Oracle is a single point of failure.** One key signs every `fulfillPhase1`. If it stalls, requests stay `isPending` until `owner` or `oracleAgent` cancels them.
 - **Scoring is not calibrated.** Phase-1 heuristics are deliberately rough pending a labelled dataset.
 - **Single DKG node.** The app depends on one edge node; there is no failover.
