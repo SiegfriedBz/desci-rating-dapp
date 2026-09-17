@@ -153,6 +153,10 @@ importers:
         version: 7.0.2
 
   packages/contracts:
+    dependencies:
+      '@desci/env':
+        specifier: workspace:*
+        version: link:../env
     devDependencies:
       typescript:
         specifier: ^7.0.2

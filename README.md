@@ -322,11 +322,14 @@ systemctl is-active rpc-proxy dkg
 
 curl -s http://127.0.0.1:9200/api/status | python3 -c "
 import json,sys; d=json.load(sys.stdin)
-g=(d.get('rfc64Catalog') or {}).get('contextGraphs') or [{}]
-for k in ['phase','authorityState','accessPolicy','publishPolicy','stableReason']:
-    print(k,'=',g[0].get(k))
+for g in (d.get('rfc64Catalog') or {}).get('contextGraphs') or []:
+    print(g.get('contextGraphId') or g.get('id'))
+    for k in ['phase','authorityState','accessPolicy','publishPolicy','stableReason']:
+        print(' ',k,'=',g.get(k))
 "
 ```
+
+Every subscribed graph is reported, because authority resolution is per-graph: one healthy graph says nothing about the others.
 
 `accessPolicy` is the field that matters: once it holds a value, writes are accepted. A `stableReason` of `catalog-replay-incomplete` on an empty graph is expected and does **not** block writes.
 
