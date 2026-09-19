@@ -4,6 +4,13 @@ import type { TargetAssetBinding } from "../../schema/types.js";
 import { daemonRequest } from "../http.js";
 import { queryDaemon } from "./query.js";
 
+/**
+ * UAL of a **minted** Knowledge Asset, or null when the name is unknown or
+ * stored but not yet minted. A reserved UAL is not a minted one: returning it
+ * would let a caller record on chain an asset that was never anchored.
+ * Only HTTP 404 means "not there"; every other failure propagates, so an
+ * outage cannot read as an absent asset.
+ */
 export async function readPublishedUal(
   baseUrl: string,
   token: string,
@@ -14,7 +21,6 @@ export async function readPublishedUal(
     const ka = await daemonRequest<{
       ual?: string;
       publishedUal?: string;
-      reservedUal?: string;
     }>(
       baseUrl,
       token,
@@ -22,9 +28,12 @@ export async function readPublishedUal(
         contextGraphId,
       }).toString()}`
     );
-    return ka.ual ?? ka.publishedUal ?? ka.reservedUal ?? null;
-  } catch {
-    return null;
+    return ka.ual ?? ka.publishedUal ?? null;
+  } catch (err) {
+    if (isHttp404(err)) {
+      return null;
+    }
+    throw err;
   }
 }
 
@@ -79,7 +88,8 @@ export async function publishAssertion(
     } catch (err) {
       lastError = err;
       const message = err instanceof Error ? err.message : String(err);
-      // Stuck mid-promote / already finalized: recover by reading current UAL.
+      // Stuck mid-promote / already finalized: the quads are stored, so take
+      // the UAL if the mint also completed and otherwise go on to mint it.
       if (
         message.includes("unfinished promote") ||
         message.includes("already exists") ||
@@ -94,6 +104,8 @@ export async function publishAssertion(
         if (recovered) {
           return { ual: recovered };
         }
+        lastError = undefined;
+        break;
       }
       if (isUnknownAccessPolicyError(message) && attempt < maxAttempts) {
         await sleep(2000 * attempt);
