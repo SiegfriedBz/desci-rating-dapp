@@ -46,7 +46,7 @@ export async function createDkgClient(config: DkgConfig = {}) {
         params.quads
       );
     },
-    /** Look up the on-chain UAL for a Knowledge Asset by daemon name. */
+    /** Look up the minted (on-chain) UAL for a Knowledge Asset by daemon name. */
     getAssetUal: async (
       name: string,
       contextGraphId: string
@@ -77,7 +77,7 @@ export async function createDkgClient(config: DkgConfig = {}) {
       return daemon.query(sparql, contextGraphId, options);
     },
     /**
-     * Load the Knowledge Asset assertion for a published UAL.
+     * Load the Knowledge Asset assertion for a minted UAL.
      * Resolves the KA via the daemon identifier API, then dumps its assertion
      * graph. Empty/404 → TargetAssetNotIndexedError.
      */

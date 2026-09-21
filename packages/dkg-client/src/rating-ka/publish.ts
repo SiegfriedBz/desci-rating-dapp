@@ -6,7 +6,7 @@ import { createRatingIdentity } from "../helpers/identity.js";
 import type { PublishAssertionDeps } from "../schema/types.js";
 import { buildRatingGraph } from "./graph.js";
 
-/** Domain helper: mint an R-KA via the daemon publish path. */
+/** Domain helper: publish an R-KA — store, then mint. */
 export async function publishRatingKa(
   deps: PublishAssertionDeps,
   params: PublishRatingParams

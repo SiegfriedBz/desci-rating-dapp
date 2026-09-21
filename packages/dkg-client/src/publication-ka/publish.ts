@@ -9,7 +9,7 @@ import type {
 } from "../schema/types.js";
 import { buildPublicationGraph } from "./graph.js";
 
-/** Domain helper: mint a publication Target KA via the daemon publish path. */
+/** Domain helper: publish a publication Target KA — store, then mint. */
 export async function publishPublicationKa(
   deps: PublishAssertionDeps,
   params: PublishPublicationParams
