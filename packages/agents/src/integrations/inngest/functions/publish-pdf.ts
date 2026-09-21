@@ -19,8 +19,8 @@ export const publishPdfFunction = inngest.createFunction(
   async ({ event, runId, step }) => {
     const { pdfCid, filename } = event.data;
 
-    // Stable across attempts of the publish step. The daemon returns the UAL
-    // of an already-published name instead of minting, so a retry that follows
+    // Stable across attempts of the publish step. An already-minted name
+    // returns its UAL instead of minting again, so a retry that follows
     // a lost response reuses the first asset rather than duplicating it. A new
     // submission is a new event, so a deliberate republish still mints.
     const kaName = `desci-pub-${event.id ?? runId}`;

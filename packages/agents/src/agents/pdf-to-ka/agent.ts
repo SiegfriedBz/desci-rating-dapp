@@ -32,8 +32,8 @@ export type PublishPublicationToDkgInput = {
   pdfCid: string;
   contextGraphId: string;
   /**
-   * Daemon asset name. The daemon returns the existing UAL when a name is
-   * already published, so a caller that can be retried should pass a name
+   * Daemon asset name. Publishing returns the existing UAL when a name is
+   * already minted, so a caller that can be retried should pass a name
    * derived from its own identity rather than letting one be generated.
    */
   name?: string;
@@ -68,13 +68,13 @@ export async function publishPublicationToDkg(
   const client = await createDkgClient();
   try {
     await client.ensureContextGraph(graphId, graphId);
-    const published = await client.publishPublication({
+    const publication = await client.publishPublication({
       contextGraphId: graphId,
       name: input.name,
       meta: { ...input.meta, pdfCid },
     });
     return {
-      ...published,
+      ...publication,
       pdfCid,
       pdfIpfsUri: ipfsUriForCid(pdfCid),
     };

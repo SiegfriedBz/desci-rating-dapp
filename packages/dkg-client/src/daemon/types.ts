@@ -20,7 +20,7 @@ export type DaemonClient = {
     name: string,
     quads: KnowledgeAssetQuad[]
   ) => Promise<{ ual: string }>;
-  /** Resolve published UAL for a Knowledge Asset name, or null if missing. */
+  /** Resolve the minted UAL for a Knowledge Asset name, or null if not minted. */
   getAssetUal: (
     contextGraphId: string,
     name: string

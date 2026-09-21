@@ -3,7 +3,7 @@ import {
   getAssetQuadsByUal,
   publishAssertion,
   queryDaemon,
-  readPublishedUal,
+  readMintedUal,
 } from "./api/index.js";
 import { readAuthToken, resolveApiBaseUrl } from "./config.js";
 import { daemonRequest } from "./http.js";
@@ -69,7 +69,7 @@ export async function connectDaemon(
     publishAssertion: (contextGraphId, name, quads) =>
       publishAssertion(baseUrl, token, contextGraphId, name, quads),
     getAssetUal: (contextGraphId, name) =>
-      readPublishedUal(baseUrl, token, contextGraphId, name),
+      readMintedUal(baseUrl, token, contextGraphId, name),
     getAssetQuadsByUal: (targetUal, contextGraphId) =>
       getAssetQuadsByUal(baseUrl, token, targetUal, contextGraphId),
     query: (sparql, contextGraphId, options) =>
