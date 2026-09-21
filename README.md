@@ -294,6 +294,15 @@ Reproducing the deployment has two halves: a **node host** that runs the long-li
 
 An Ubuntu VM with a public IP and two DNS names. Everything except Caddy binds to localhost.
 
+Most of what follows runs **on that box**, so start with a shell on it. The login user is `ubuntu`; the key is whichever one Oracle Cloud was given at instance creation and is not in this repo:
+
+```bash
+ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
+  -i ~/.ssh/<your-key> ubuntu@verisci-dkg.duckdns.org
+```
+
+The keepalives earn their place: [`dkg context-graph create`](#creating-and-registering-a-context-graph) blocks for ten minutes or more, and a session dropped for idleness mid-command takes `--save` with it. If the DNS name stops resolving — DuckDNS records lapse when nothing refreshes them — the current IP is in the Oracle Cloud console. The daemon's bearer token lives in `~/.dkg/auth.token` on the box, so authenticated calls there go to `http://127.0.0.1:9200` and need nothing from Vercel. The one check that needs no shell at all is [`/api/status`](#verifying-both-graphs-are-set-up-and-running), which Caddy serves unauthenticated.
+
 | Unit | Port | Role |
 |---|---|---|
 | `caddy` | 443 | TLS termination + reverse proxy |
@@ -440,6 +449,8 @@ PREFIX=0x38B548Ca70E61055a936EF84C2Ff65B8cca22DD8
 pnpm dkg:fetch-asset "$UAL" "$PREFIX/verisci"        # staging → property bindings
 pnpm dkg:fetch-asset "$UAL" "$PREFIX/verisci-prod"   # production → "No triples found"
 ```
+
+Point this at the node that holds both graphs first. With `DKG_API_URL` and `DKG_AUTH_TOKEN` unset, `@desci/dkg-client` resolves `~/.dkg/api.port` and queries your **local** daemon, which is subscribed to neither graph — both lines then print "No triples found", which looks like half a proof and is none.
 
 Two things that look like bugs and are not. `DKG_CONTEXT_GRAPH_ID` must still hold a valid value even when you pass the argument, because `@desci/env` validates at import time, long before `main()` reads argv — an unset variable aborts the script before it can use your override. And a variable exported in your shell wins over `--env-file`, so `unset DKG_CONTEXT_GRAPH_ID` before relying on `.env`. Note also that `.env` is read by Node, not bash: `UAL=…` there sets it for the script, not for `$UAL` in your prompt.
 
