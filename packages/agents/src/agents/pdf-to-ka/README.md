@@ -8,7 +8,8 @@ Agent: scientific PDF bytes + already-pinned CID → publication Target Knowledg
 2. GROBID fulltext → TEI-XML
 3. Parse TEI → title / abstract / authors / kept body sections
 4. Gemini structured extract → `PublicationMetadata` (`pdfCid` set from the caller)
-5. `publishPublication` → Target KA UAL
+5. Store the Target KA on the node → KA name, no UAL yet
+6. Mint it → Target KA UAL
 
 **Pinning is not part of this agent.** Callers pin first via [`@desci/agents/ipfs`](../../ipfs/README.md) (`pinPdfToIpfs`) and pass `{ pdf, pdfCid }`. The CLI and the Inngest `publish-pdf` function both do that composition.
 
@@ -21,12 +22,18 @@ DOI (`schema:sameAs`) is metadata only — use the content-addressed `ipfs://…
 | `runPdfToKaAgent(input)` | Full agent (`agent.ts`) — all three stages in one call |
 | `extractTeiFromPdf({ pdf, filename? })` | Stage 1: GROBID → TEI slices |
 | `extractPublicationMetadata` / `publicationMetadataSchema` | Stage 2: Gemini → `PublicationMetadata` |
-| `publishPublicationToDkg(input)` | Stage 3: metadata → Target KA UAL |
+| `storePublicationToDkg(input)` | Stage 3a: metadata → KA quads on the node, no UAL |
+| `mintPublicationToDkg(input)` | Stage 3b: stored KA → Target KA UAL |
+| `publishPublicationToDkg(input)` | Stage 3: both halves in one call |
 | `processPdfWithGrobid(pdf, filename?)` | GROBID → raw TEI-XML |
 | `extractTeiSections` | TEI-XML → structured slices |
-| `PdfToKaResult` / `RunPdfToKaAgentInput` / `PublishPublicationToDkgInput` | Types |
+| `PdfToKaResult` / `StoredPublicationKa` / `RunPdfToKaAgentInput` / `PublishPublicationToDkgInput` / `MintPublicationToDkgInput` | Types |
 
-The stages are exported separately so a caller that can retry one of them — the Inngest `publish-pdf` function — does not have to redo the others. Pass `name` to `publishPublicationToDkg` if your caller can be retried: the daemon returns the UAL of an already-published name instead of minting a second asset.
+The stages are exported separately so a caller that can retry one of them — the Inngest `publish-pdf` function — does not have to redo the others. Stage 3 is exported three ways for the same reason: `publish-pdf` runs the store and the mint as two steps, so a failed mint is retried on its own, while the CLI has no steps and wants the composite.
+
+Pass `name` if your caller can be retried. What that buys depends on which route you are on. A stepped caller gets its guarantee from the step boundary — a retry of the mint replays the store's recorded result and re-drives `vm/publish` alone — and `mintPublicationToDkg` short-circuits to the existing UAL if the name is already minted, because a second `vm/publish` on a minted name is an error rather than a no-op. A caller of the composite gets the older guarantee instead: the daemon recognises an already-minted name and hands back its UAL.
+
+`storePublicationToDkg` returns `{ name, subjectUri, state }` and no UAL — there is nothing anchored to name yet. `subjectUri` is in there because the mint cannot recompute it: with no DOI in the metadata it is a fresh UUID generated alongside the quads. `mintPublicationToDkg` takes it back in and returns the full `PdfToKaResult`.
 
 Import via `@desci/agents` or `@desci/agents/pdf-to-ka`.
 
