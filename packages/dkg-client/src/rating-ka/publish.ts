@@ -1,16 +1,22 @@
 import type {
+  KnowledgeAssetQuad,
   PublishRatingParams,
   PublishRatingResult,
+  StoreRatingResult,
 } from "@desci/shared";
 import { createRatingIdentity } from "../helpers/identity.js";
-import type { PublishAssertionDeps } from "../schema/types.js";
+import type {
+  PublishAssertionDeps,
+  StoreAssertionDeps,
+} from "../schema/types.js";
 import { buildRatingGraph } from "./graph.js";
 
-/** Domain helper: publish an R-KA — store, then mint. */
-export async function publishRatingKa(
-  deps: PublishAssertionDeps,
-  params: PublishRatingParams
-): Promise<PublishRatingResult> {
+function prepareRatingKa(params: PublishRatingParams): {
+  contextGraphId: string;
+  name: string;
+  ratingSubject: string;
+  quads: KnowledgeAssetQuad[];
+} {
   const targetUal = params.targetUal.trim();
   if (!targetUal) {
     throw new Error("targetUal is required");
@@ -38,6 +44,33 @@ export async function publishRatingKa(
     observed: params.observed,
     missing: params.missing,
   });
+
+  return { contextGraphId, name, ratingSubject, quads };
+}
+
+/**
+ * Domain helper: store an R-KA — build the graph, put it on the node, stop.
+ * Returns the identity the mint half needs; nothing is on chain yet, so there
+ * is no UAL.
+ */
+export async function storeRatingKa(
+  deps: StoreAssertionDeps,
+  params: PublishRatingParams
+): Promise<StoreRatingResult> {
+  const { contextGraphId, name, ratingSubject, quads } =
+    prepareRatingKa(params);
+
+  await deps.storeAssertion(contextGraphId, name, quads);
+  return { ratingSubject, name };
+}
+
+/** Domain helper: publish an R-KA — store, then mint. */
+export async function publishRatingKa(
+  deps: PublishAssertionDeps,
+  params: PublishRatingParams
+): Promise<PublishRatingResult> {
+  const { contextGraphId, name, ratingSubject, quads } =
+    prepareRatingKa(params);
 
   const { ual } = await deps.publishAssertion(contextGraphId, name, quads);
 

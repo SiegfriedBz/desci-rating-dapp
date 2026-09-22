@@ -117,7 +117,27 @@ export type PublishPublicationResult = {
   subjectUri: string;
 };
 
-/** Shared dependency for minting any Knowledge Asset via the daemon. */
+/**
+ * A publication Target KA whose quads are on the node and whose NFT is not.
+ * No `ual` — there is nothing anchored to name yet. `subjectUri` is here
+ * because the mint cannot recompute it: without a DOI it is a fresh UUID
+ * minted alongside the graph, so whoever mints must carry it across.
+ */
+export type StorePublicationResult = {
+  name: string;
+  subjectUri: string;
+};
+
+/** Shared dependency for storing any Knowledge Asset via the daemon. */
+export type StoreAssertionDeps = {
+  storeAssertion: (
+    contextGraphId: string,
+    name: string,
+    quads: KnowledgeAssetQuad[]
+  ) => Promise<void>;
+};
+
+/** Shared dependency for publishing (store **and** mint) via the daemon. */
 export type PublishAssertionDeps = {
   publishAssertion: (
     contextGraphId: string,

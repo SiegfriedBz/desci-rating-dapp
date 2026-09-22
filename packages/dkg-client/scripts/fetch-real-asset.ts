@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   let ualSource: "DKG_UAL" | "daemon" = "DKG_UAL";
 
   if (kaName) {
-    const resolved = await client.getAssetUal(kaName, contextGraphId);
+    const resolved = await client.getMintedUal(kaName, contextGraphId);
     if (resolved) {
       if (envUal && envUal !== resolved) {
         console.warn(

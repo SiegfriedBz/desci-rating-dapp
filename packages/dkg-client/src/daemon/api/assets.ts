@@ -155,20 +155,23 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function publishAssertion(
+/**
+ * Store a Knowledge Asset: `POST /api/knowledge-assets`, finalized and shared
+ * to the SWM. The quads land on the node and nothing is anchored on chain, so
+ * there is no UAL to return — `mintAssertion` is the other half.
+ *
+ * The four retries on an unknown access policy belong to this call: the node
+ * needs its Base Sepolia RPC to decide plaintext vs encrypted, and only the
+ * store asks it to.
+ */
+export async function storeAssertion(
   baseUrl: string,
   token: string,
   contextGraphId: string,
   name: string,
   quads: KnowledgeAssetQuad[]
-): Promise<{ ual: string }> {
-  const existingUal = await readMintedUal(baseUrl, token, contextGraphId, name);
-  if (existingUal) {
-    return { ual: existingUal };
-  }
-
+): Promise<void> {
   const maxAttempts = 4;
-  let lastError: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await daemonRequest(baseUrl, token, "/api/knowledge-assets", {
@@ -181,42 +184,68 @@ export async function publishAssertion(
           alsoShareSwm: true,
         }),
       });
-      lastError = undefined;
-      break;
+      return;
     } catch (err) {
-      lastError = err;
       const message = err instanceof Error ? err.message : String(err);
-      // The daemon's own words for "these quads are already stored": take the
-      // UAL if the mint also completed, and otherwise go on to mint it.
+      // The daemon's own words for "these quads are already stored", which is
+      // what a lost response looks like on the next attempt. Whether the mint
+      // also happened is not this call's question.
       if (
         message.includes("unfinished promote") ||
         message.includes("already exists") ||
         message.includes("already published")
       ) {
-        const recovered = await readMintedUal(
-          baseUrl,
-          token,
-          contextGraphId,
-          name
-        );
-        if (recovered) {
-          return { ual: recovered };
-        }
-        lastError = undefined;
-        break;
-      }
-      if (isUnknownAccessPolicyError(message) && attempt < maxAttempts) {
-        await sleep(2000 * attempt);
-        continue;
+        return;
       }
       if (isUnknownAccessPolicyError(message)) {
+        if (attempt < maxAttempts) {
+          await sleep(2000 * attempt);
+          continue;
+        }
         throw new Error(unknownAccessPolicyHint(contextGraphId), { cause: err });
       }
       throw err;
     }
   }
-  if (lastError) {
-    throw lastError;
+}
+
+/**
+ * Mint a stored Knowledge Asset: `POST /api/knowledge-assets/{name}/vm/publish`,
+ * which anchors the NFT and makes the UAL real. Takes a name, not quads — the
+ * assertion is already on the node.
+ *
+ * Asks the daemon what state the name is in before acting, and branches on all
+ * three answers: `minted` short-circuits, `stored` mints, `missing` throws.
+ */
+export async function mintAssertion(
+  baseUrl: string,
+  token: string,
+  contextGraphId: string,
+  name: string
+): Promise<{ ual: string }> {
+  const asset = await readKnowledgeAssetState(
+    baseUrl,
+    token,
+    contextGraphId,
+    name
+  );
+
+  if (asset.state === "minted") {
+    // second vm/publish on a minted name is an error, not a no-op — spike Q4, 2026-09-21
+    return { ual: asset.ual };
+  }
+
+  if (asset.state === "missing") {
+    // A caller that reached the mint has stored, or believes it has. Re-storing
+    // from here would hide that loss behind a fresh assertion, so the run fails
+    // and a human decides. If this ever fires where the store is milliseconds
+    // old, it is read-after-write lag and wants one short retry before this
+    // throw — not `missing` folded into `stored`, which mints absent assets.
+    throw new Error(
+      `DKG has no Knowledge Asset "${name}" in context graph "${contextGraphId}" ` +
+        `(state=missing), so there is nothing to mint. Its quads were reported ` +
+        `stored; refusing to store them again from the mint.`
+    );
   }
 
   const minted = await daemonRequest<{ ual?: string }>(
@@ -236,11 +265,35 @@ export async function publishAssertion(
   const ual = await readMintedUal(baseUrl, token, contextGraphId, name);
   if (!ual) {
     throw new Error(
-      `Publish completed but no UAL was returned for Knowledge Asset "${name}".`
+      `Mint completed but no UAL was returned for Knowledge Asset "${name}".`
     );
   }
 
   return { ual };
+}
+
+/**
+ * Publish a Knowledge Asset: store, then mint. For callers with nothing to put
+ * between the halves — the CLI scripts and `runPdfToKaAgent`, which want one
+ * call that does everything. Callers that can be retried a step at a time drive
+ * the two halves themselves.
+ */
+export async function publishAssertion(
+  baseUrl: string,
+  token: string,
+  contextGraphId: string,
+  name: string,
+  quads: KnowledgeAssetQuad[]
+): Promise<{ ual: string }> {
+  // Ahead of the store, so a republish of a minted name does not POST quads at
+  // an asset that is already anchored.
+  const existingUal = await readMintedUal(baseUrl, token, contextGraphId, name);
+  if (existingUal) {
+    return { ual: existingUal };
+  }
+
+  await storeAssertion(baseUrl, token, contextGraphId, name, quads);
+  return mintAssertion(baseUrl, token, contextGraphId, name);
 }
 
 function isHttp404(err: unknown): boolean {
