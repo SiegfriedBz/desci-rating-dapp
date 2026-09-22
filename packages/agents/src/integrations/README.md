@@ -13,14 +13,17 @@ Wallet requestPhase1
   → processRatingControllerEvent → Inngest event
   → phase1RequestedFunction
       → ka-scorer agent
-      → DKG publishRating
+      → DKG storeRating, then mintAsset (one step each)
       → fulfillPhase1OnChain (evm/)
 
 UI uploadAndPin
   → Inngest pdf.submitted
   → publishPdfFunction
-      → fetchPdfByCid (ipfs/)
-      → runPdfToKaAgent
+      → fetchPdfByCid (ipfs/), inside the grobid-extract step
+      → extractTeiFromPdf → extractPublicationMetadata
+      → storePublicationToDkg → mintPublicationToDkg
 ```
+
+`publishPdfFunction` drives the pdf-to-ka stages itself rather than calling `runPdfToKaAgent`: it needs one step per stage so a retry resumes instead of restarting.
 
 Served from the Next app at `apps/web/src/app/api/inngest/route.ts` (`pnpm inngest:dev` at repo root).

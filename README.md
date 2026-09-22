@@ -115,7 +115,9 @@ Two independent flows. A user may publish a KA without requesting a rating, or r
 
 ### Flow 1 — Publish a KA (PDF → Target KA)
 
-Available from the web app (`Publish KA` modal on the landing page) and from the CLI (`pnpm dkg:publish-pdf`). Both run the same three stages — the CLI in one call via `runPdfToKaAgent`, the Inngest job as one step per stage so a retry resumes instead of restarting.
+Available from the web app (`Publish KA` modal on the landing page) and from the CLI (`pnpm dkg:publish-pdf`). Both run the same three stages — the CLI in one call via `runPdfToKaAgent`, the Inngest job one step per stage, plus a fourth because it splits the DKG stage into its store and mint halves, so a retry resumes instead of restarting.
+
+**Only one of the two routes has steps,** and that is why the combined functions survive alongside their halves. `publishPublicationToDkg` and `publishAssertion` beneath it still store and mint in one call, because the CLI is a plain Node script with no save points and no memoization: it wants one call that does everything. They are not dead code left behind by the split.
 
 ```mermaid
 flowchart TD
@@ -126,13 +128,13 @@ flowchart TD
   WEB --> PIN["pinPdfToIpfs (Pinata)<br/>→ ipfs:// CID"]
   CLI --> PIN
   PIN -->|"web only"| EV["inngest.send(pdf.submitted)<br/>pdfCid + filename"]
-  EV --> FN["Inngest publish-pdf<br/>steps: grobid-extract → gemini-structure → dkg-publish"]
+  EV --> FN["Inngest publish-pdf<br/>steps: grobid-extract → gemini-structure<br/>→ dkg-store-target-ka → dkg-mint-target-ka"]
   FN --> AGENT["pdf-to-ka stages"]
   PIN -->|"CLI: runPdfToKaAgent"| AGENT
   AGENT --> GROBID["GROBID /api/processFulltextDocument<br/>→ TEI-XML"]
   GROBID --> TEI["extractTeiSections<br/>→ title / abstract / authors / sections"]
   TEI --> META["Gemini structured extract<br/>→ PublicationMetadata"]
-  META --> DAEMON["DKG daemon publishPublication<br/>① POST /api/knowledge-assets — RDF off-chain<br/>② POST /vm/publish — NFT on-chain"]
+  META --> DAEMON["DKG daemon — two calls, one Inngest step each<br/>① store: POST /api/knowledge-assets — RDF off-chain (dkg-store-target-ka)<br/>② mint: POST /vm/publish — NFT on-chain (dkg-mint-target-ka)"]
   DAEMON --> UAL["Target KA UAL"]
   UAL -->|"web: modal polls Inngest run"| SHOW["UAL shown + copyable"]
 ```
@@ -143,7 +145,7 @@ flowchart TD
 
 **Why a durable job.** GROBID + Gemini + DKG publish routinely exceeds a single HTTP request budget, so the web path enqueues an Inngest job (`finish: "10m"`, 2 retries) and the modal polls run status every 3 s.
 
-`publishAssertion` is **idempotent by KA name**: it short-circuits to the existing UAL when the name already resolves to a **minted** UAL. Publishing is two daemon calls — **store** the RDF, then **mint** the NFT — and a name that is stored but not yet minted is never mistaken for a minted one: the daemon's "already exists" / "unfinished promote" responses now carry on to the mint instead of returning a UAL for an asset that does not exist yet. Note that this only helps when the caller passes an explicit `name` — the default generated names (`desci-pub-*`) are fresh UUIDs, so **submitting the same PDF twice mints two Target KAs.** Deduplicating on the pinned CID is a [Roadmap](#roadmap) item.
+`publishAssertion` is **idempotent by KA name**: it short-circuits to the existing UAL when the name already resolves to a **minted** UAL. Publishing is two daemon calls — **store** the RDF, then **mint** the NFT — and a name that is stored but not yet minted is never mistaken for a minted one: the daemon's "already exists" / "unfinished promote" responses carry on to the mint instead of returning a UAL for an asset that does not exist yet. The Inngest route rests on something firmer than that name lookup — the store is a step, so a retry of the mint replays its recorded result instead of asking the daemon to recognise the name again — but the CLI route has no steps, and the name is what it has. Note that this only helps when the caller passes an explicit `name` — the default generated names (`desci-pub-*`) are fresh UUIDs, so **submitting the same PDF twice mints two Target KAs.** Deduplicating on the pinned CID is a [Roadmap](#roadmap) item.
 
 ### Flow 2 — Rate a KA (Phase-1 oracle)
 
@@ -159,7 +161,7 @@ flowchart TD
   WH --> INN["Inngest event<br/>RatingController/phase1.requested"]
   INN --> FETCH["getAssetQuadsByUal<br/>→ RDF triples from DKG"]
   FETCH --> SCORE["runKaScorerAgent<br/>→ score / rationale / observed / missing"]
-  SCORE --> RKA["DKG daemon publishRating: mint R-KA NFT<br/>(schema:about targetUal, schema:ratingValue score)"]
+  SCORE --> RKA["DKG daemon — two calls, one Inngest step each<br/>① store: R-KA quads — schema:about targetUal, schema:ratingValue score (dkg-store-rating-ka)<br/>② mint: R-KA NFT on-chain (dkg-mint-rating-ka)"]
   RKA --> FUL["fulfillPhase1(targetUal, score, rKaUal)<br/>— emits Phase1Fulfilled"]
   FUL --> POLL["UI polls getRatingByUal every 5 s<br/>→ score + R-KA UAL"]
 ```
@@ -168,7 +170,7 @@ flowchart TD
 
 The `phase1-requested` function retries 3 times with concurrency 5 global / 1 per `requestId`. It retries on `TargetAssetNotIndexedError` to absorb DKG indexing lag, and `fulfillPhase1OnChain` reads `getRatingByUal` first, returning `already_fulfilled` without sending a transaction if the record is already `Phase1Completed`. The UI warns after 90 s (`ORACLE_STALL_MS`) if the oracle has not fulfilled.
 
-**One on-chain request mints exactly one R-KA.** The R-KA is named `desci-rating-<requestId>-<transactionHash>`, and `publishAssertion` is idempotent by KA name, so however many times the step is retried — including when Vercel kills the invocation while the daemon is still publishing — every attempt converges on the same R-KA. Convergence holds precisely because a stored name is never mistaken for a minted one: the Vercel kill lands between the two daemon calls, and the next attempt finishes the mint on that same name rather than short-circuiting to a UAL the contract would then record for an asset that was never anchored. Combined with the contract refusing a second `requestPhase1` once a UAL is rated, a paper ends up with exactly one R-KA. The single exception is the cancel-and-retry case in [Known limitations](#known-limitations), which mints a second one on purpose.
+**One on-chain request mints exactly one R-KA.** The R-KA is named `desci-rating-<requestId>-<transactionHash>`, so however many times the job is retried — including when Vercel kills the invocation while the daemon is still publishing — every attempt converges on the same R-KA. The store and the mint are separate steps, which is what carries that convergence: a Vercel kill between them leaves the store recorded as done, and the retry re-drives the mint alone on that same name rather than storing a second assertion or short-circuiting to a UAL the contract would then record for an asset that was never anchored. Stored-but-not-minted is the boundary between the two steps rather than a state to be recovered from, and a mint that finds the name already minted hands back the existing UAL instead of asking the daemon to mint twice. Combined with the contract refusing a second `requestPhase1` once a UAL is rated, a paper ends up with exactly one R-KA. The single exception is the cancel-and-retry case in [Known limitations](#known-limitations), which mints a second one on purpose.
 
 ---
 
@@ -409,7 +411,7 @@ for g in (d.get('rfc64Catalog') or {}).get('contextGraphs') or []:
 
 Every subscribed graph is reported, because authority resolution is per-graph: one healthy graph says nothing about the others.
 
-Two graphs now backfill through the single proxy, so `authority-resolution-failed` has two very different causes. Read the daemon log before touching the proxy: `ERC721NonexistentToken` is the post-registration finality lag described above and clears itself, while a head-probe timeout is genuine queue contention against the 4-second deadline.
+Both graphs backfill through the single proxy, so `authority-resolution-failed` has two very different causes. Read the daemon log before touching the proxy: `ERC721NonexistentToken` is the post-registration finality lag described above and clears itself, while a head-probe timeout is genuine queue contention against the 4-second deadline.
 
 `accessPolicy` is the field that matters: once it holds a value, writes are accepted. A `stableReason` of `catalog-replay-incomplete` on an empty graph is expected and does **not** block writes.
 
@@ -557,7 +559,7 @@ All secrets live in repo-root `.env`. Reference: [`.env.example`](.env.example).
 
 ### `@desci/dkg-client`
 
-`createDkgClient()` connects to the daemon and exposes `ensureContextGraph`, `publishAsset`, `getAssetUal`, `publishPublication`, `publishRating`, `query`, `getAssetQuadsByUal`, `queryRatingsAbout`, `getChainId`, `getHubAddress`, `getApiBaseUrl`, and `stop()` (a no-op — daemon lifecycle is external). Also exports `probeDkgDaemon` for cheap liveness checks, `queryPublicationsWithRatings` for the catalog, the KA graph builders, `parseUal` / `ualFromVerifiableMemoryGraphIri` for asset identity, `literalLexicalForm` for reading query results, and the vocab IRIs.
+`createDkgClient()` connects to the daemon and exposes `ensureContextGraph`, the store / mint / publish trio (`storeAsset`, `mintAsset`, `publishAsset`, and `storePublication` / `publishPublication`, `storeRating` / `publishRating`), `readAssetState`, `getMintedUal`, `query`, `getAssetQuadsByUal`, `queryRatingsAbout`, `getChainId`, `getHubAddress`, `getApiBaseUrl`, and `stop()` (a no-op — daemon lifecycle is external). Also exports `probeDkgDaemon` for cheap liveness checks, `queryPublicationsWithRatings` for the catalog, the KA graph builders, `parseUal` / `ualFromVerifiableMemoryGraphIri` for asset identity, `literalLexicalForm` for reading query results, and the vocab IRIs.
 
 Auth and API URL resolve from `createDkgClient({ apiUrl, authToken })` or env / `~/.dkg`: `DKG_AUTH_TOKEN` or `~/.dkg/auth.token`; `DKG_API_URL`, else `~/.dkg/api.port`, else `config.json` `apiPort`, else `DKG_API_PORT` (default `9200`).
 

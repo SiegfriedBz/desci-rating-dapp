@@ -1,9 +1,12 @@
 import {
   ensureContextGraph,
   getAssetQuadsByUal,
+  mintAssertion,
   publishAssertion,
   queryDaemon,
+  readKnowledgeAssetState,
   readMintedUal,
+  storeAssertion,
 } from "./api/index.js";
 import { readAuthToken, resolveApiBaseUrl } from "./config.js";
 import { daemonRequest } from "./http.js";
@@ -66,9 +69,15 @@ export async function connectDaemon(
     baseUrl,
     ensureContextGraph: (id, name) =>
       ensureContextGraph(baseUrl, token, id, name),
+    storeAssertion: (contextGraphId, name, quads) =>
+      storeAssertion(baseUrl, token, contextGraphId, name, quads),
+    mintAssertion: (contextGraphId, name) =>
+      mintAssertion(baseUrl, token, contextGraphId, name),
     publishAssertion: (contextGraphId, name, quads) =>
       publishAssertion(baseUrl, token, contextGraphId, name, quads),
-    getAssetUal: (contextGraphId, name) =>
+    readKnowledgeAssetState: (contextGraphId, name) =>
+      readKnowledgeAssetState(baseUrl, token, contextGraphId, name),
+    getMintedUal: (contextGraphId, name) =>
       readMintedUal(baseUrl, token, contextGraphId, name),
     getAssetQuadsByUal: (targetUal, contextGraphId) =>
       getAssetQuadsByUal(baseUrl, token, targetUal, contextGraphId),

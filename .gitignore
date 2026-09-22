@@ -16,3 +16,8 @@ out-foundry
 .claude/
 agent/
 skills-lock.json
+
+# Cursor: .cursor/rules/monorepo.mdc and web.mdc stay tracked (they describe
+# this repo). These two are per-developer.
+.cursor/mcp.json
+.cursor/rules/git.mdc

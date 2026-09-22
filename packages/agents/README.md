@@ -22,19 +22,24 @@ Package scripts: `pnpm --filter @desci/agents build` (`tsc` → `dist/`) and `cl
 ## Architecture notes
 
 - **Agents** live under `src/agents/<name>/` with an `agent.ts` exporting `runXxxAgent`.
-- **IPFS** is a sibling module (`@desci/agents/ipfs`). Callers pin (or later fetch) outside the agent, then pass `{ pdf, pdfCid }` into `runPdfToKaAgent`.
+- **IPFS** is a sibling module (`@desci/agents/ipfs`). Callers pin, or fetch by CID, outside the agent and pass `{ pdf, pdfCid }` in.
 - **LLM**: LangChain `ChatGoogleGenerativeAI` + Zod structured output (`src/shared/llm/gemini.ts`). No LangGraph.
 - **Durable jobs**: Inngest under `src/integrations/` (Phase-1 RatingController + PDF→KA publish).
 
 Depends on `@desci/dkg-client` for daemon publish/query. Gemini: `GOOGLE_API_KEY`; optional `GEMINI_MODEL` (default `gemini-3.5-flash-lite`). Pin: `PINATA_JWT`. Fetch: `IPFS_GATEWAY_URL` (e.g. Pinata gateway). The KA stores `ipfs://…` on `schema:encoding` / `schema:contentUrl`.
 
-## Composition (CLI today)
+## Composition
+
+Two routes into the DKG, and only one of them has steps.
 
 ```
-readFile(path) → pinPdfToIpfs(bytes) → runPdfToKaAgent({ pdf, pdfCid, contextGraphId })
+CLI      readFile(path) → pinPdfToIpfs(bytes) → runPdfToKaAgent({ pdf, pdfCid, contextGraphId })
+Inngest  uploadAndPin → pdf.submitted → publishPdfFunction, which calls fetchPdfByCid and
+         then drives the stages itself: extractTeiFromPdf → extractPublicationMetadata
+         → storePublicationToDkg → mintPublicationToDkg
 ```
 
-Later (upload / Inngest): pin or `fetchPdfByCid` in the caller, then the same `runPdfToKaAgent`.
+The Inngest path does **not** call `runPdfToKaAgent`. It needs one step per stage so a retry resumes, which is the whole reason the stages are exported separately. `runPdfToKaAgent` remains the CLI's one-call entry point.
 
 ## Folders
 
@@ -76,8 +81,8 @@ See [src/integrations/inngest/README.md](src/integrations/inngest/README.md). Ap
 Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `oracle.updated`, plus `pdf.submitted`.
 
 - `adapters/rating-controller-event.ts` — decoded log → Inngest events (idempotency keys per log)
-- `functions/phase1-requested.ts` — fetch KA → `runKaScorerAgent` → mint R-KA → `fulfillPhase1OnChain`
-- `functions/publish-pdf.ts` — `extractTeiFromPdf` → `extractPublicationMetadata` → `publishPublicationToDkg`, one stage per step
+- `functions/phase1-requested.ts` — fetch KA → `runKaScorerAgent` → store R-KA → mint R-KA → `fulfillPhase1OnChain`
+- `functions/publish-pdf.ts` — `extractTeiFromPdf` → `extractPublicationMetadata` → `storePublicationToDkg` → `mintPublicationToDkg`, one daemon call per step
 - `functions/log-contract-event.ts` — log-only handlers (`phase1-fulfilled-log`, `request-cancelled-log`, `oracle-updated-log`)
 
 Repo-root `pnpm inngest:dev` → `http://localhost:3000/api/inngest`.

@@ -54,5 +54,7 @@ export type {
   PublishPublicationParams,
   PublishPublicationResult,
   RatingBinding,
+  StoreAssertionDeps,
+  StorePublicationResult,
   TargetAssetBinding,
 } from "./types.js";

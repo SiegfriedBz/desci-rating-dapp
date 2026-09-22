@@ -1,4 +1,8 @@
-export type { PublishRatingParams, PublishRatingResult } from "@desci/shared";
+export type {
+  PublishRatingParams,
+  PublishRatingResult,
+  StoreRatingResult,
+} from "@desci/shared";
 
 export type {
   ParsedUal,
@@ -13,6 +17,8 @@ export type {
   PublishPublicationParams,
   PublishPublicationResult,
   RatingBinding,
+  StoreAssertionDeps,
+  StorePublicationResult,
   TargetAssetBinding,
 } from "./schema/index.js";
 
@@ -56,6 +62,7 @@ export {
   pdfIpfsUrlFromBindings,
   publishPublicationKa,
   queryPublicationsWithRatings,
+  storePublicationKa,
 } from "./publication-ka/index.js";
 
 export {
@@ -63,6 +70,7 @@ export {
   parseLegacyEvidenceDescription,
   publishRatingKa,
   queryRatingsAbout,
+  storeRatingKa,
   type LegacyEvidenceDescription,
 } from "./rating-ka/index.js";
 
@@ -80,4 +88,5 @@ export {
 
 export { TargetAssetNotIndexedError } from "./errors.js";
 export { createDkgClient, type DkgClient } from "./client.js";
+export type { KnowledgeAssetState } from "./daemon/types.js";
 export { probeDkgDaemon, type DkgProbeResult } from "./daemon/probe.js";

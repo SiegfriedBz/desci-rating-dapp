@@ -18,11 +18,14 @@ Library entry (`index.ts`) re-exports `createDkgClient`, publication/rating KA h
 
 `client.ts` wires `connectDaemon` to:
 
-- `ensureContextGraph`, `publishAsset`, `getAssetUal`, `query`
-- `publishPublication` / `publishRating`
+- `ensureContextGraph`, `query`
+- `storeAsset` / `mintAsset` / `publishAsset`, and the two readers `readAssetState` / `getMintedUal`
+- `storePublication` / `publishPublication`, `storeRating` / `publishRating`
 - `getAssetQuadsByUal` (empty/404 → `TargetAssetNotIndexedError`)
 - `queryRatingsAbout`
 - `getChainId`, `getHubAddress`, `getApiBaseUrl`, `stop`
+
+There is one `mintAsset` rather than a `mintPublication` and a `mintRating`: minting takes a name, and by the time it runs the quads that made the asset a publication or a rating are already on the node. The store halves are per kind because that is where the graph is built.
 
 `errors.ts` defines `TargetAssetNotIndexedError` (`code: "TargetAssetNotIndexed"`) — the only exported error class. Everything else throws plain `Error`.
 
@@ -30,7 +33,7 @@ Library entry (`index.ts`) re-exports `createDkgClient`, publication/rating KA h
 
 ### `src/schema/`
 
-- `types.ts` — `PublicationMetadata`, publication/rating params and results, `PublishAssertionDeps`, `TargetAssetBinding`, `RatingBinding` (+ `ratingBindingSchema`)
+- `types.ts` — `PublicationMetadata`, publication/rating params and results (including `StorePublicationResult`, which has a name and a subject IRI and no UAL), the `StoreAssertionDeps` / `PublishAssertionDeps` pair, `TargetAssetBinding`, `RatingBinding` (+ `ratingBindingSchema`)
 - `vocab.ts` — schema.org, RDF, and DEO predicate/class IRIs used when building and querying quads, plus the project's own `desci:` terms (`DESCI_OBSERVED_EVIDENCE`, `DESCI_MISSING_EVIDENCE`) for the rigor signals schema.org has no predicate for
 - `ual.ts` — `parseUal` / `isUal`, the single strict definition of the `did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}` grammar, and `ualFromVerifiableMemoryGraphIri` which recovers that UAL from a SPARQL `GRAPH` IRI
 
@@ -45,7 +48,7 @@ Shared utilities (no daemon I/O):
 
 ### `src/publication-ka/`
 
-Publish a publication Target KA — store **and** mint, see the glossary in [`src/daemon/api/`](#srcdaemonapi): `buildPublicationGraph` (`graph.ts`) from `PublicationMetadata`, `publishPublicationKa` (`publish.ts`) via a `publishAssertion` dependency. When `PublicationMetadata.pdfCid` is set (caller pins via `@desci/agents/ipfs` before `runPdfToKaAgent`), quads include `schema:encoding` / `schema:contentUrl` as a content-addressed `ipfs://…` URI — this package does not call Pinata or IPFS gateways. `pdfIpfsUrlFromBindings` (`pdf-url.ts`) reads that URL back from assertion bindings.
+Publish a publication Target KA — store **and** mint, see the glossary in [`src/daemon/api/`](#srcdaemonapi): `buildPublicationGraph` (`graph.ts`) from `PublicationMetadata`, then `publish.ts`, which offers `publishPublicationKa` via a `publishAssertion` dependency and `storePublicationKa` via a `storeAssertion` one. The store half returns `{ name, subjectUri }`: `subjectUri` is a fresh UUID when the metadata has no DOI, so whoever mints later has to carry it rather than recompute it. When `PublicationMetadata.pdfCid` is set (caller pins via `@desci/agents/ipfs` before `runPdfToKaAgent`), quads include `schema:encoding` / `schema:contentUrl` as a content-addressed `ipfs://…` URI — this package does not call Pinata or IPFS gateways. `pdfIpfsUrlFromBindings` (`pdf-url.ts`) reads that URL back from assertion bindings.
 
 `query.ts` — `queryPublicationsWithRatings(query, contextGraphId)` powers the web catalog. It runs two SPARQL queries in parallel (`schema:ScholarlyArticle` publications, and `schema:about` + `schema:ratingValue` ratings), then joins them on the target UAL. Each UAL is derived from the verifiable-memory graph IRI by `ualFromVerifiableMemoryGraphIri` → `did:dkg:base:{chainId}/{dkgAgentAddress}/{tokenId}`. Bindings: `pub`, `subjectUri`, `title`, `rKaUal`, `ratingValue`. One row per publication UAL. A publication normally has exactly one R-KA, so the ratings join keeps the highest token id only as a tie-break for the cancel-and-retry edge case (see the function's header comment), where the orphaned R-KA also sits in the graph and the contract points at the newer mint.
 
@@ -54,7 +57,7 @@ Publish a publication Target KA — store **and** mint, see the glossary in [`sr
 Publish and read rating KAs (R-KA):
 
 - `graph.ts` — `buildRatingGraph`. Four schema.org quads (`schema:about`, `schema:ratingValue`, `schema:author`, `schema:description`) plus one repeated `desci:observedEvidence` / `desci:missingEvidence` quad per evidence item. The schema.org four are the stable contract; `queryPublicationsWithRatings` keys the catalog off `schema:about` + `schema:ratingValue`.
-- `publish.ts` — `publishRatingKa`
+- `publish.ts` — `publishRatingKa` and `storeRatingKa`. The store half returns `{ name, ratingSubject }`, and `ratingSubject` is generated with the quads, so the mint cannot derive it from the name
 - `query.ts` — `queryRatingsAbout` (SPARQL “Action B”: ratings that `schema:about` a target UAL). Two queries joined in JS rather than one `SELECT` with two repeated-literal `OPTIONAL`s, which would return the cross product of the two evidence lists. The core query wraps its pattern in `GRAPH ?g` so each row carries `rKaUal` — the identity the contract records and the detail pages route on; the local `ratingSubject` cannot be routed on. Bindings: `ratingSubject`, `rKaUal`, `ratingValue`, `author`, `description`, `rationale`, `observed`, `missing`.
 - `legacy-description.ts` — `parseLegacyEvidenceDescription`. R-KAs minted before the `desci:` terms existed flattened the verdict into one prose `schema:description`; `queryRatingsAbout` recovers evidence from it so no caller has to branch on format. Deliberately strict about the exact trailing `Observed:` / `Missing:` bullet structure, so a genuine rationale that merely opens a line with `Observed:` is left alone.
 
@@ -71,8 +74,8 @@ HTTP client for the running daemon (`connectDaemon` in `gateway.ts`). Waits on `
 
 **Glossary.** Publishing a Knowledge Asset is two daemon calls, and this package names them:
 
-- **store** — `POST /api/knowledge-assets` (with `finalize` and `alsoShareSwm`). The quads land on the node; nothing is on chain yet.
-- **mint** — `POST /api/knowledge-assets/{name}/vm/publish`. The NFT is anchored and the UAL becomes real.
+- **store** — `POST /api/knowledge-assets` (with `finalize` and `alsoShareSwm`). The quads land on the node; nothing is on chain yet. `storeAssertion`.
+- **mint** — `POST /api/knowledge-assets/{name}/vm/publish`. The NFT is anchored and the UAL becomes real. `mintAssertion`.
 - **publish** — both, in order. `publishAssertion`, `publishPublicationKa`, `publishRatingKa` and `publishRating` all mean the composite.
 
 The daemon spells these differently: its `vm/publish` route and its `state: "published"` are our **mint**, and its errors say “promote” for our **store**. `readKnowledgeAssetState` is the single place that translation happens — nothing else in this package should repeat the daemon's words.
@@ -80,10 +83,14 @@ The daemon spells these differently: its `vm/publish` route and its `state: "pub
 One module per daemon route used by this package:
 
 - `context-graph.ts` — `POST /api/context-graph/create` (`ensureContextGraph`; ignores “already exists”)
-- `assets.ts` — two readers over `GET /api/knowledge-assets/{name}`: `readMintedUal` (the UAL, or null when the name is unknown or stored but not minted) and `readKnowledgeAssetState` (the `missing` / `stored` / `minted` discriminated union it is built on). Plus store (`POST /api/knowledge-assets`), mint (`POST /api/knowledge-assets/{name}/vm/publish`), and the assertion-graph dump (`getAssetQuadsByUal`)
+- `assets.ts` — two readers over `GET /api/knowledge-assets/{name}`: `readMintedUal` (the UAL, or null when the name is unknown or stored but not minted) and `readKnowledgeAssetState` (the `missing` / `stored` / `minted` discriminated union it is built on). Plus `storeAssertion` (`POST /api/knowledge-assets`), `mintAssertion` (`POST /api/knowledge-assets/{name}/vm/publish`), the `publishAssertion` composite over the two, and the assertion-graph dump (`getAssetQuadsByUal`)
 - `query.ts` — `POST /api/query`
 
-`publishAssertion` is idempotent **by KA name**: it short-circuits to the existing UAL when `readMintedUal` resolves the name, and retries up to 4 times on transient access-policy errors. A name that is only stored — the store call landed, the mint call did not — does not resolve, so the daemon's “already exists” / “unfinished promote” responses carry on to the mint instead of handing back a reserved UAL for an asset that was never anchored on chain. The default generated names are fresh UUIDs, so idempotency only works when the caller passes an explicit `name` — and both Inngest callers do: `publish-pdf` keys the publication on the Inngest event id, `phase1-requested` keys the rating on the on-chain `requestId` plus the transaction hash of the request. The transaction hash is part of that key because `requestId` is `keccak256(targetUal)`, which is identical across a cancelled-and-retried request — a run that must mint its own R-KA rather than reuse the one holding the previous score.
+**Minting the same name twice is an error, not a no-op.** The daemon rejects a second `vm/publish` on an already-minted asset, so `mintAssertion` asks `readKnowledgeAssetState` before acting rather than minting and catching — the rejection message matches none of the phrases the store recovery looks for, and extending that list would not help. It branches on all three states: `minted` returns the existing UAL, `stored` mints, and `missing` throws with the name and the observed state, because a caller that reached the mint has already stored and re-storing from here would hide data loss behind a fresh assertion.
+
+The four retries on a transient access-policy error live in `storeAssertion`, which is the call that needs the node's RPC. `storeAssertion` also treats the daemon's “already exists” / “unfinished promote” answers as success: they mean the quads are there, which is what a lost response looks like on the next attempt. Whether the mint also happened is not that call's question.
+
+`publishAssertion` is idempotent **by KA name**: it short-circuits to the existing UAL when `readMintedUal` resolves the name, ahead of the store so a republish does not POST quads at an anchored asset. A name that is only stored does not resolve, so the publish carries on to the mint instead of handing back a reserved UAL for an asset that was never anchored on chain. Callers that can retry one daemon call at a time do better than this name lookup: the Inngest functions drive the two halves as separate steps, so a retry of the mint replays the store's recorded result rather than asking the daemon to recognise a name — a saved step result instead of unversioned prose from a vendor. The default generated names are fresh UUIDs, so name idempotency only works when the caller passes an explicit `name` — and both Inngest callers do: `publish-pdf` keys the publication on the Inngest event id, `phase1-requested` keys the rating on the on-chain `requestId` plus the transaction hash of the request. The transaction hash is part of that key because `requestId` is `keccak256(targetUal)`, which is identical across a cancelled-and-retried request — a run that must mint its own R-KA rather than reuse the one holding the previous score.
 
 ### `scripts/`
 

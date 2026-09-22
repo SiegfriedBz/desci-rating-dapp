@@ -36,8 +36,10 @@ Caller has PDF bytes
 
 Caller has only a CID (UI / Inngest)
   → fetchPdfByCid(cid)           # this module
-  → runPdfToKaAgent({ pdf, pdfCid, … })
+  → extractTeiFromPdf({ pdf, … })
 ```
+
+The Inngest `publish-pdf` function calls `fetchPdfByCid` **inside** its `grobid-extract` step and then drives the pdf-to-ka stages itself — it does not call `runPdfToKaAgent`. The fetch lives inside that step rather than in one of its own because step output is persisted and replayed, and PDF bytes are far more expensive to carry than the TEI slices the step returns.
 
 The CLI (`scripts/publish-pdf.ts`) pins then calls the agent; it does **not** fetch after pin.
 

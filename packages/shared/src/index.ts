@@ -36,6 +36,13 @@ export type PublishAssetParams = {
   quads: KnowledgeAssetQuad[];
 };
 
+/** Mint half of a publish. No quads: the assertion is already on the node. */
+export type MintAssetParams = {
+  contextGraphId: string;
+  /** Named Knowledge Asset within the context graph. */
+  name: string;
+};
+
 export type KnowledgeAssetPublishResult = {
   ual: string;
 };
@@ -63,5 +70,15 @@ export type PublishRatingResult = KnowledgeAssetPublishResult & {
   /** Local RDF subject IRI of the rating assertion. */
   ratingSubject: string;
   /** Daemon Knowledge Asset name used for publish. */
+  name: string;
+};
+
+/**
+ * An R-KA whose quads are on the node and whose NFT is not. No `ual` — nothing
+ * is anchored yet. `ratingSubject` is a fresh UUID generated with the graph, so
+ * whoever mints has to carry it across rather than derive it from the name.
+ */
+export type StoreRatingResult = {
+  ratingSubject: string;
   name: string;
 };
