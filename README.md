@@ -143,7 +143,7 @@ flowchart TD
 
 **Why a durable job.** GROBID + Gemini + DKG publish routinely exceeds a single HTTP request budget, so the web path enqueues an Inngest job (`finish: "10m"`, 2 retries) and the modal polls run status every 3 s.
 
-`publishAssertion` is **idempotent by KA name**: it short-circuits to the existing UAL when the name already resolves to a **minted** UAL. Publishing is two daemon calls — **store** the RDF, then **mint** the NFT — and a name that is stored but not yet minted is never mistaken for a minted one: the daemon's "already exists" / "unfinished promote" responses now carry on to the mint instead of returning a UAL for an asset that does not exist yet. Note that this only helps when the caller passes an explicit `name` — the default generated names (`desci-pub-*`) are fresh UUIDs, so **submitting the same PDF twice mints two Target KAs.** Deduplicating on the pinned CID is a [Roadmap](#roadmap) item.
+`publishAssertion` is **idempotent by KA name**: it short-circuits to the existing UAL when the name already resolves to a **minted** UAL. Publishing is two daemon calls — **store** the RDF, then **mint** the NFT — and a name that is stored but not yet minted is never mistaken for a minted one: the daemon's "already exists" / "unfinished promote" responses carry on to the mint instead of returning a UAL for an asset that does not exist yet. Note that this only helps when the caller passes an explicit `name` — the default generated names (`desci-pub-*`) are fresh UUIDs, so **submitting the same PDF twice mints two Target KAs.** Deduplicating on the pinned CID is a [Roadmap](#roadmap) item.
 
 ### Flow 2 — Rate a KA (Phase-1 oracle)
 
@@ -409,7 +409,7 @@ for g in (d.get('rfc64Catalog') or {}).get('contextGraphs') or []:
 
 Every subscribed graph is reported, because authority resolution is per-graph: one healthy graph says nothing about the others.
 
-Two graphs now backfill through the single proxy, so `authority-resolution-failed` has two very different causes. Read the daemon log before touching the proxy: `ERC721NonexistentToken` is the post-registration finality lag described above and clears itself, while a head-probe timeout is genuine queue contention against the 4-second deadline.
+Both graphs backfill through the single proxy, so `authority-resolution-failed` has two very different causes. Read the daemon log before touching the proxy: `ERC721NonexistentToken` is the post-registration finality lag described above and clears itself, while a head-probe timeout is genuine queue contention against the 4-second deadline.
 
 `accessPolicy` is the field that matters: once it holds a value, writes are accepted. A `stableReason` of `catalog-replay-incomplete` on an empty graph is expected and does **not** block writes.
 
