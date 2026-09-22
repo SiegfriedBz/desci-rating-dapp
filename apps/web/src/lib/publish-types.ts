@@ -16,6 +16,21 @@ export enum PublishModalPhase {
   Error = "error",
 }
 
+/**
+ * What the modal may safely offer once it is in `Error`. The three differ by
+ * what is known to be running, not by what went wrong: publishing again sends
+ * a second `pdf.submitted` under a fresh `desci-pub-*` name, so it is offered
+ * only where nothing was sent.
+ */
+export enum PublishErrorAction {
+  /** No event id — the upload or the send failed. Publishing again is safe. */
+  Retry = "retry",
+  /** A job is out there and only the poll died. Watch it again. */
+  Resume = "resume",
+  /** Inngest reported the run failed. No primary action is safe. */
+  None = "none",
+}
+
 export type PublishStatusResult = {
   status: PublishJobStatus;
   ual?: string;
@@ -36,6 +51,18 @@ export const PUBLISH_STATUS_POLL_MS = 3_000;
  * different environment than the one the event went to.
  */
 export const PUBLISH_STATUS_GRACE_TICKS = 10;
+
+/**
+ * Polls to tolerate before treating a *thrown* poll as a failure. A throw says
+ * nothing about the job: `getPublishStatus` throws on any non-OK HTTP status
+ * as well as on transport failure, so a 502 from the Inngest API, a Vercel
+ * redeploy and a laptop losing wifi all look the same, and the job keeps
+ * running through every one of them. The window is therefore chosen as
+ * tolerated blackout rather than as a count — 40 ticks at 3 s is two minutes,
+ * long enough to ride out a deployment, short enough that a genuinely dead
+ * poll still reports before the job's own 10m finish window closes.
+ */
+export const PUBLISH_STATUS_ERROR_GRACE_TICKS = 40;
 
 /** Accept common PDF MIME types and `.pdf` extension (some OS/browsers omit type). */
 export function isPdfFile(file: File): boolean {

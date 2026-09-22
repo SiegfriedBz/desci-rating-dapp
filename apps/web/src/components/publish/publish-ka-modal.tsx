@@ -7,7 +7,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MAX_PDF_MB, PublishModalPhase } from "@/lib/publish-types";
+import {
+  MAX_PDF_MB,
+  PublishErrorAction,
+  PublishModalPhase,
+} from "@/lib/publish-types";
+import { PublishKaErrorNotice } from "./publish-ka-error-notice";
 import { PublishKaFileForm } from "./publish-ka-file-form";
 import { PublishKaFooter } from "./publish-ka-footer";
 import { PublishKaProgress } from "./publish-ka-progress";
@@ -30,14 +35,19 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
     fileInputRef,
     isBusy,
     canSubmit,
+    errorAction,
     reset,
     onFileChange,
     onSubmit,
+    resumeChecking,
     copyUal,
   } = usePublishKa(open);
 
+  const inError = phase === PublishModalPhase.Error;
+  // The picker belongs to the states a publish can still start from.
   const showForm =
-    phase === PublishModalPhase.Idle || phase === PublishModalPhase.Error;
+    phase === PublishModalPhase.Idle ||
+    (inError && errorAction === PublishErrorAction.Retry);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,7 +60,7 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
             structured by Gemini AI, and published as a Knowledge Asset on
             OriginTrail DKG — minting an ERC-721 NFT on Base Sepolia that
             anchors its provenance on-chain. No wallet signature required. This
-            takes 2–5 minutes.
+            takes 5–10 minutes.
           </DialogDescription>
         </DialogHeader>
 
@@ -73,6 +83,14 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
           />
         ) : null}
 
+        {inError && errorAction !== PublishErrorAction.Retry ? (
+          <PublishKaErrorNotice
+            action={errorAction}
+            error={error}
+            eventId={eventId}
+          />
+        ) : null}
+
         {showForm ? (
           <PublishKaFileForm
             file={file}
@@ -86,9 +104,11 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
           phase={phase}
           isBusy={isBusy}
           canSubmit={canSubmit}
+          errorAction={errorAction}
           onClose={() => onOpenChange(false)}
           onReset={reset}
           onSubmit={() => void onSubmit()}
+          onResume={resumeChecking}
         />
       </DialogContent>
     </Dialog>
