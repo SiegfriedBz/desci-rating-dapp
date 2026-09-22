@@ -24,9 +24,9 @@ export const phase1RequestedFunction = inngest.createFunction(
     const { targetUal, requestId, chainId, transactionHash } = event.data;
     const contextGraphId = env.DKG_CONTEXT_GRAPH_ID;
 
-    // Stable across attempts of the mint step, so a retry that follows a lost
-    // response reuses the first R-KA instead of minting another. The
-    // transaction hash is in the key because requestId is keccak256(targetUal)
+    // Stable across attempts of the store step, so a store that landed but lost
+    // its response is recognised as already stored instead of minting a second
+    // R-KA. The transaction hash is in the key because requestId is keccak256(targetUal)
     // on its own: a cancelled-and-retried request carries the same requestId
     // but is scored again, and reusing the first R-KA would record the new
     // score against an asset holding the old one.
@@ -52,10 +52,13 @@ export const phase1RequestedFunction = inngest.createFunction(
       return runKaScorerAgent(bindings as TargetAssetBinding[]);
     });
 
-    const minted = await step.run("mint-r-ka", async () => {
+    // Two steps rather than one, so each daemon call gets its own maxDuration
+    // window and its own retries. A retry of the mint replays this step's saved
+    // result instead of storing the quads a second time.
+    const stored = await step.run("dkg-store-rating-ka", async () => {
       const client = await createDkgClient();
       try {
-        const result = await client.publishRating({
+        return await client.storeRating({
           contextGraphId,
           targetUal,
           name: rKaName,
@@ -65,7 +68,22 @@ export const phase1RequestedFunction = inngest.createFunction(
           observed: evaluation.observed,
           missing: evaluation.missing,
         });
-        return { rKaUal: result.ual, ratingSubject: result.ratingSubject };
+      } finally {
+        await client.stop();
+      }
+    });
+
+    // `ratingSubject` comes from the store step, which generated it with the
+    // quads: it is a fresh UUID, not something the mint can derive from the
+    // name. The saved step output is what keeps it stable across mint retries.
+    const minted = await step.run("dkg-mint-rating-ka", async () => {
+      const client = await createDkgClient();
+      try {
+        const result = await client.mintAsset({
+          contextGraphId,
+          name: stored.name,
+        });
+        return { rKaUal: result.ual, ratingSubject: stored.ratingSubject };
       } finally {
         await client.stop();
       }
