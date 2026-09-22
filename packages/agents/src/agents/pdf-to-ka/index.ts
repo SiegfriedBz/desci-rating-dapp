@@ -1,10 +1,14 @@
 export {
   extractTeiFromPdf,
+  mintPublicationToDkg,
   publishPublicationToDkg,
   runPdfToKaAgent,
+  storePublicationToDkg,
+  type MintPublicationToDkgInput,
   type PdfToKaResult,
   type PublishPublicationToDkgInput,
   type RunPdfToKaAgentInput,
+  type StoredPublicationKa,
 } from "./agent.js";
 export { extractPublicationMetadata } from "./extract/extract.js";
 export {
