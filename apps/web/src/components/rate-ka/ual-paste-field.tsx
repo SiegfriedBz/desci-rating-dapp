@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { OracleRequestStatus } from "./oracle-request-status";
 import { RequestPhase1Button } from "./request-phase1-button";
 import { truncateUal } from "./rate-ka-table-meta";
+import { useSyncCatalogsWithRating } from "./use-sync-catalogs-with-rating";
 
 export function UalPasteField() {
   const [input, setInput] = useState("");
@@ -36,6 +37,8 @@ export function UalPasteField() {
   });
 
   const rating = ratingQuery.data;
+  useSyncCatalogsWithRating(rating ?? null);
+
   const canRequest =
     rating != null &&
     rating.phase === RATING_PHASE.Unrated &&

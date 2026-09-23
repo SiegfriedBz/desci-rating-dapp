@@ -63,7 +63,7 @@ The poll survives two kinds of non-answer: Inngest reporting no run yet (`PUBLIS
 
 `canSubmit` therefore requires `eventId == null`, and so does the `Error → Idle` recovery in `onFileChange`: with a job in flight, picking a new file must not re-arm Publish. The action is derived from `eventId` and `watchLost` rather than stored, so no stale flag can offer `Resume` once the event id is gone.
 
-**Request Phase 1** (`rate-ka/use-request-phase1.ts`): requires a connected wallet on chain `84532`, then `simulateContract` → `writeContract` → `useWaitForTransactionReceipt`. The transaction must be signed by the user so that `msg.sender` is recorded as the requester. Contract reverts are mapped to readable copy (`AlreadyPending`, `InvalidPhase`, `EmptyUal`), as is a wallet rejection. After the receipt lands, `OracleRequestStatus` polls `getRatingByUal` every 5 s and warns after 90 s (`ORACLE_STALL_MS`) that the oracle has not fulfilled.
+**Request Phase 1** (`rate-ka/use-request-phase1.ts`): requires a connected wallet on chain `84532`, then `simulateContract` → `writeContract` → `useWaitForTransactionReceipt`. The transaction must be signed by the user so that `msg.sender` is recorded as the requester. Contract reverts are mapped to readable copy (`AlreadyPending`, `InvalidPhase`, `EmptyUal`), as is a wallet rejection. After the receipt lands, `OracleRequestStatus` polls `getRatingByUal` every 5 s and warns after 90 s (`ORACLE_STALL_MS`) that the oracle has not fulfilled. The tables do not poll: `useSyncCatalogsWithRating` invalidates the `/rate-ka` list when that read turns pending, and both catalogs when it reaches `Phase1Completed`, so the row leaves the list and the landing catalog shows the score without a reload.
 
 ## Wallet
 
