@@ -17,6 +17,3 @@ export type OnChainRating = {
   phase1Score: number;
   rKaUal: string;
 };
-
-/** Shared TanStack Query key for the unrated-KA table on `/rate-ka`. */
-export const UNRATED_KAS_QUERY_KEY = ["unrated-kas"] as const;

@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { queryKas } from "@/lib/queries/dkg/kas";
-import { KAS_QUERY_KEY, type KaRow } from "@/lib/queries/kas-types";
+import type { KaRow } from "@/lib/queries/kas-types";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { KaDataTable } from "./ka-data-table";
 
 type KaDataTableClientProps = {
@@ -18,7 +19,7 @@ export function KaDataTableClient({
   enableRefetch = true,
 }: KaDataTableClientProps) {
   const { data } = useQuery({
-    queryKey: KAS_QUERY_KEY,
+    queryKey: queryKeys.kas(),
     queryFn: queryKas,
     initialData,
     staleTime: 60_000,

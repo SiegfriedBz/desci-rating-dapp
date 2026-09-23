@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { uploadAndPin } from "@/lib/commands/dkg/publish-ka";
 import { getPublishStatus } from "@/lib/queries/dkg/publish-status";
-import { KAS_QUERY_KEY } from "@/lib/queries/kas-types";
+import { queryKeys } from "@/lib/queries/query-keys";
 import {
   isBusyPhase,
   isPdfFile,
@@ -81,7 +81,7 @@ export function usePublishKa(open: boolean) {
             clearPoll();
             setUal(result.ual ?? null);
             setPhase(PublishModalPhase.Done);
-            void queryClient.invalidateQueries({ queryKey: KAS_QUERY_KEY });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.kas() });
             return;
           }
           if (result.status === PublishJobStatus.Failed) {

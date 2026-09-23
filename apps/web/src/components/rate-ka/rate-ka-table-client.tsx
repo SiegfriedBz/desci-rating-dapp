@@ -7,10 +7,8 @@ import {
   queryRatingByUal,
   queryUnratedKas,
 } from "@/lib/queries/contract/ratings";
-import {
-  UNRATED_KAS_QUERY_KEY,
-  type UnratedKaRow,
-} from "@/lib/queries/contract/ratings-types";
+import type { UnratedKaRow } from "@/lib/queries/contract/ratings-types";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { OracleRequestStatus } from "./oracle-request-status";
 import { RateKaDataTable } from "./rate-ka-data-table";
 import { useSyncCatalogsWithRating } from "./use-sync-catalogs-with-rating";
@@ -31,7 +29,7 @@ export function RateKaTableClient({
   const [watchStartedAt, setWatchStartedAt] = useState<number | null>(null);
 
   const unratedQuery = useQuery({
-    queryKey: UNRATED_KAS_QUERY_KEY,
+    queryKey: queryKeys.unratedKas(),
     queryFn: queryUnratedKas,
     initialData,
     staleTime: 30_000,
@@ -39,7 +37,7 @@ export function RateKaTableClient({
   });
 
   const ratingQuery = useQuery({
-    queryKey: ["rating-by-ual", watchingUal],
+    queryKey: queryKeys.ratingByUal(watchingUal),
     queryFn: () => queryRatingByUal(watchingUal!),
     enabled: Boolean(watchingUal),
     refetchInterval: (query) =>

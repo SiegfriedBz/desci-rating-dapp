@@ -3,11 +3,8 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { RATING_PHASE } from "@desci/shared";
-import {
-  UNRATED_KAS_QUERY_KEY,
-  type OnChainRating,
-} from "@/lib/queries/contract/ratings-types";
-import { KAS_QUERY_KEY } from "@/lib/queries/kas-types";
+import type { OnChainRating } from "@/lib/queries/contract/ratings-types";
+import { queryKeys } from "@/lib/queries/query-keys";
 
 /**
  * Refetch the catalogs when a watched rating changes state, so the tables
@@ -25,9 +22,9 @@ export function useSyncCatalogsWithRating(rating: OnChainRating | null) {
     if (!ual || (!isPending && !isCompleted)) {
       return;
     }
-    void queryClient.invalidateQueries({ queryKey: UNRATED_KAS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.unratedKas() });
     if (isCompleted) {
-      void queryClient.invalidateQueries({ queryKey: KAS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.kas() });
     }
   }, [queryClient, ual, isPending, isCompleted]);
 }
