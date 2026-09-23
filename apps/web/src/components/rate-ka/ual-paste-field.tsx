@@ -5,10 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { RATING_PHASE } from "@desci/shared";
 import { Loader2 } from "lucide-react";
 import { queryRatingByUal } from "@/lib/queries/contract/ratings";
+import { queryKeys } from "@/lib/queries/query-keys";
 import { Button } from "@/components/ui/button";
 import { OracleRequestStatus } from "./oracle-request-status";
 import { RequestPhase1Button } from "./request-phase1-button";
 import { truncateUal } from "./rate-ka-table-meta";
+import { useSyncCatalogsWithRating } from "./use-sync-catalogs-with-rating";
 
 export function UalPasteField() {
   const [input, setInput] = useState("");
@@ -17,7 +19,7 @@ export function UalPasteField() {
   const [watchStartedAt, setWatchStartedAt] = useState<number | null>(null);
 
   const ratingQuery = useQuery({
-    queryKey: ["rating-by-ual-paste", checkedUal],
+    queryKey: queryKeys.ratingByUalPaste(checkedUal),
     queryFn: () => queryRatingByUal(checkedUal!),
     enabled: Boolean(checkedUal),
     refetchInterval: (query) => {
@@ -36,6 +38,8 @@ export function UalPasteField() {
   });
 
   const rating = ratingQuery.data;
+  useSyncCatalogsWithRating(rating ?? null);
+
   const canRequest =
     rating != null &&
     rating.phase === RATING_PHASE.Unrated &&
