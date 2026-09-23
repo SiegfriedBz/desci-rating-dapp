@@ -53,6 +53,16 @@ components/
 
 **Publish KA** (`publish/use-publish-ka.ts`): the modal accepts a PDF up to 5 MB (`MAX_PDF_BYTES`, enforced in both the UI and the server action), calls `uploadAndPin`, then polls run status every 3 s (`PUBLISH_STATUS_POLL_MS`) until the Inngest job returns the UAL, and invalidates the catalog query on success. No wallet is involved — the DKG daemon signs the KA mint.
 
+The poll survives two kinds of non-answer: Inngest reporting no run yet (`PUBLISH_STATUS_GRACE_TICKS`) and the read itself throwing, which covers every non-OK HTTP status as well as transport failure (`PUBLISH_STATUS_ERROR_GRACE_TICKS`, two minutes at the 3 s interval). Past either threshold the modal enters `Error` — and `Error` is not one state. `PublishErrorAction` splits it by what is known to be running, since a second publish sends a second `pdf.submitted` under a fresh `desci-pub-*` name and mints a second Target KA for the same paper:
+
+| Action | Reached by | Offers |
+|---|---|---|
+| `Retry` | no `eventId` — the upload or the `send()` failed | Publish again, PDF still selected |
+| `Resume` | the poll gave up without a verdict | "Resume checking" — `startPolling(eventId)` again |
+| `None` | Inngest returned `Failed` or `Cancelled` | only Clear, which resets and re-arms Publish |
+
+`canSubmit` therefore requires `eventId == null`, and so does the `Error → Idle` recovery in `onFileChange`: with a job in flight, picking a new file must not re-arm Publish. The action is derived from `eventId` and `watchLost` rather than stored, so no stale flag can offer `Resume` once the event id is gone.
+
 **Request Phase 1** (`rate-ka/use-request-phase1.ts`): requires a connected wallet on chain `84532`, then `simulateContract` → `writeContract` → `useWaitForTransactionReceipt`. The transaction must be signed by the user so that `msg.sender` is recorded as the requester. Contract reverts are mapped to readable copy (`AlreadyPending`, `InvalidPhase`, `EmptyUal`), as is a wallet rejection. After the receipt lands, `OracleRequestStatus` polls `getRatingByUal` every 5 s and warns after 90 s (`ORACLE_STALL_MS`) that the oracle has not fulfilled.
 
 ## Wallet
