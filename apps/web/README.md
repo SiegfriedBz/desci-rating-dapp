@@ -32,11 +32,13 @@ All DKG and on-chain reads happen on the server. `src/lib/evm-client.ts` and `sr
 | `lib/dkg-availability.ts` | `getDkgAvailability` | One cheap `probeDkgDaemon` per request, wrapped in React `cache()`. Gates the catalog and the Publish button, and returns a generic user-facing message rather than leaking probe internals |
 | `lib/queries/dkg/kas.ts` | `getKas`, `queryKas` | `queryPublicationsWithRatings` SPARQL, newest-first by token id, capped at `LANDING_KA_CATALOG_LIMIT` (12). Rows with no rating in SPARQL fall back to an on-chain `getRatingByUal` multicall, so scores still appear during DKG sync lag |
 | `lib/queries/contract/ratings.ts` | `getRatingByUal`, `queryRatingByUal`, `getUnratedKas`, `queryUnratedKas` | Single-UAL read, plus the `/rate-ka` list filtered to `phase === Unrated` (pending rows kept so users can see their in-flight request) |
-| `lib/queries/dkg/publish-status.ts` | `getPublishStatus` | Polls the Inngest REST API (`/v1/events/{id}/runs`) and maps run status to `PublishJobStatus` |
+| `lib/queries/dkg/publish-status.ts` | `getPublishStatus` | Polls the Inngest REST API (`/v1/events/{id}/runs`), maps run status to `PublishJobStatus` and carries `run_started_at` through as `startedAt`. Answers a `PublishStatusRead` union and **never throws** — see below |
 | `lib/commands/dkg/publish-ka.ts` | `uploadAndPin` | Server action: validate PDF → `pinPdfToIpfs` → `inngest.send(pdf.submitted)` → return the event id |
 | `lib/evm-client.ts` | `getEvmClient` | Lazy cached viem public client for Base Sepolia |
 
 Each `get*` throws so server components can render an unavailable state; the paired `query*` wrapper never throws and is what TanStack Query calls on refetch.
+
+**`getPublishStatus` is the exception, deliberately.** It returns `PublishStatusRead` — `{ ok: true, data }` or `{ ok: false, error }` — and throws nothing. A *thrown* server-action error does not survive the trip to the browser in production: React replaces the message with "An error occurred in the Server Components render. The specific message is omitted in production builds…" plus a digest. Anything a server action wants a user to read must therefore be **returned**, and this one's failures are read by a person watching a six-minute publish. The same file already proved the point before the change — Inngest's own `result.error` reached the modal fine, because it travelled as a returned value while the module's own diagnostics were thrown and wiped.
 
 ## Components
 
@@ -53,13 +55,17 @@ components/
 
 **Publish KA** (`publish/use-publish-ka.ts`): the modal accepts a PDF up to 5 MB (`MAX_PDF_BYTES`, enforced in both the UI and the server action), calls `uploadAndPin`, then polls run status every 3 s (`PUBLISH_STATUS_POLL_MS`) until the Inngest job returns the UAL, and invalidates the catalog query on success. No wallet is involved — the DKG daemon signs the KA mint.
 
-The poll survives two kinds of non-answer: Inngest reporting no run yet (`PUBLISH_STATUS_GRACE_TICKS`) and the read itself throwing, which covers every non-OK HTTP status as well as transport failure (`PUBLISH_STATUS_ERROR_GRACE_TICKS`, two minutes at the 3 s interval). Past either threshold the modal enters `Error` — and `Error` is not one state. `PublishErrorAction` splits it by what is known to be running, since a second publish sends a second `pdf.submitted` under a fresh `desci-pub-*` name and mints a second Target KA for the same paper:
+**The job outlives the modal.** `lib/publish-job-store.ts` keeps the event id in `localStorage`, expiry-checked on every read against `PUBLISH_JOB_TTL_MS` — 20 minutes, matching the `timeouts.finish` window `publishPdfFunction` gives a run, so an older id cannot name a live job. Opening the modal reads the id back and resumes the poll immediately rather than offering a button, because `errorAction` would read `None` for a restored id and leave only Clear. `sessionStorage` would not do: it dies with the tab, and closing the tab during a six-minute wait is the case this exists for. The direction of failure decides it — `canSubmit` reads an *absent* id as "nothing was sent" and re-arms Publish, which mints a second Target KA, whereas restoring an id only ever costs a poll. Closing the modal and Clear are therefore different actions: closing keeps the job, Clear abandons it and drops the id, as does a `Completed` or `Failed` verdict.
+
+**Progress is drawn against the clock,** since the Inngest runs endpoint reports a run's status and output and carries no step data at all — "Extracting with GROBID" is not available to ask for. `progressForPhase(phase, elapsedMs)` eases from 30 % toward a 95 % ceiling it never reaches, using the `startedAt` the run object does carry, and the panel ticks itself once a second because the poll only writes state when something changes. A flat bar over six minutes reads as a hang; one that never fills is honest about a run that is late.
+
+The poll survives two kinds of non-answer: Inngest reporting no run yet (`PUBLISH_STATUS_GRACE_TICKS`), and a reading it could not get at all (`PUBLISH_STATUS_ERROR_GRACE_TICKS`, two minutes at the 3 s interval). The second arrives two ways and one `noteLostReading` handles both — a returned `ok: false`, meaning the action ran and Inngest refused, and a throw, meaning the call itself never completed. They differ in which hop broke but not in what the poll should do, which is to stay in `Processing` and keep counting. Past either threshold the modal enters `Error` — and `Error` is not one state. `PublishErrorAction` splits it by what is known to be running, since a second publish sends a second `pdf.submitted` under a fresh `desci-pub-*` name and mints a second Target KA for the same paper:
 
 | Action | Reached by | Offers |
 |---|---|---|
 | `Retry` | no `eventId` — the upload or the `send()` failed | Publish again, PDF still selected |
 | `Resume` | the poll gave up without a verdict | "Resume checking" — `startPolling(eventId)` again |
-| `None` | Inngest returned `Failed` or `Cancelled` | only Clear, which resets and re-arms Publish |
+| `None` | Inngest returned `Failed` or `Cancelled` | only Clear, which drops the stored id and re-arms Publish |
 
 `canSubmit` therefore requires `eventId == null`, and so does the `Error → Idle` recovery in `onFileChange`: with a job in flight, picking a new file must not re-arm Publish. The action is derived from `eventId` and `watchLost` rather than stored, so no stale flag can offer `Resume` once the event id is gone.
 

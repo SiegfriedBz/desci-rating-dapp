@@ -39,7 +39,7 @@ export function usePublishKa(open: boolean) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** Consecutive polls where Inngest reported no run for this event id. */
   const missesRef = useRef(0);
-  /** Consecutive polls that threw — HTTP error or transport failure. */
+  /** Consecutive polls that came back without a reading — returned or thrown. */
   const failuresRef = useRef(0);
 
   const clearPoll = useCallback(() => {

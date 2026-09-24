@@ -73,14 +73,16 @@ export const PUBLISH_STATUS_POLL_MS = 3_000;
 export const PUBLISH_STATUS_GRACE_TICKS = 10;
 
 /**
- * Polls to tolerate before treating a *thrown* poll as a failure. A throw says
- * nothing about the job: `getPublishStatus` throws on any non-OK HTTP status
- * as well as on transport failure, so a 502 from the Inngest API, a Vercel
- * redeploy and a laptop losing wifi all look the same, and the job keeps
- * running through every one of them. The window is therefore chosen as
- * tolerated blackout rather than as a count — 40 ticks at 3 s is two minutes,
- * long enough to ride out a deployment, short enough that a genuinely dead
- * poll still reports before the job's own 10m finish window closes.
+ * Polls to tolerate before treating a lost reading as a failure. A lost
+ * reading says nothing about the job. `getPublishStatus` returns `ok: false`
+ * for every answer it cannot use — Inngest unreachable, any non-OK status, a
+ * body that is not JSON — and the call itself can still throw when no request
+ * completes at all, so a 502 from the Inngest API, a Vercel redeploy and a
+ * laptop losing wifi all come to the same thing, and the job keeps running
+ * through every one of them. The window is therefore chosen as tolerated
+ * blackout rather than as a count — 40 ticks at 3 s is two minutes, long
+ * enough to ride out a deployment, short enough that a genuinely dead poll
+ * still reports well inside the job's own 20m finish window.
  */
 export const PUBLISH_STATUS_ERROR_GRACE_TICKS = 40;
 
