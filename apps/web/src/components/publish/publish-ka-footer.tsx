@@ -61,13 +61,12 @@ export function PublishKaFooter({
           Clear
         </Button>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onClose}
-          disabled={isBusy}
-        >
-          Cancel
+        // Not a cancel: closing the dialog has never stopped the run, and
+        // since the job became resumable it does not even stop the watching.
+        // Labelling it "Cancel" invited the user to believe they had called
+        // off a publish that then minted anyway, minutes later.
+        <Button type="button" variant="outline" onClick={onClose}>
+          {isBusy ? "Continue in background" : "Close"}
         </Button>
       )}
       {inError && errorAction === PublishErrorAction.Resume ? (

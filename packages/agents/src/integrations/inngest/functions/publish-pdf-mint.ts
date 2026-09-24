@@ -2,7 +2,12 @@ import { createDkgClient } from "@desci/dkg-client";
 import { env } from "@desci/env";
 import { DKG_MINT_TARGET_KA_STEP } from "@desci/shared";
 import { InngestEvent, inngest } from "../client.js";
-import { targetKaName, withQuorumBackoff } from "./publish-pdf.js";
+import {
+  DKG_WRITE_FINISH_TIMEOUT,
+  DKG_WRITE_RETRIES,
+  withQuorumBackoff,
+} from "../dkg-write-policy.js";
+import { targetKaName } from "./publish-pdf.js";
 
 /**
  * Mint a Target KA that `publish-pdf` stored and never anchored.
@@ -25,8 +30,8 @@ export const publishPdfMintFunction = inngest.createFunction(
     // Same budget as the publish it is finishing: this runs the half that was
     // slow and flaky in the first place, with none of the cheap stages in
     // front of it to absorb any of the time.
-    retries: 4,
-    timeouts: { finish: "45m" },
+    retries: DKG_WRITE_RETRIES,
+    timeouts: { finish: DKG_WRITE_FINISH_TIMEOUT },
     // One mint at a time per asset, so a user pressing the button twice and an
     // operator retrying from the dashboard cannot drive `vm/publish` twice on
     // the same name — which is an error rather than a no-op.

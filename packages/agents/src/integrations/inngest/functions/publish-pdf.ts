@@ -1,6 +1,5 @@
 import { env } from "@desci/env";
-import { DKG_MINT_TARGET_KA_STEP, isQuorumFailure } from "@desci/shared";
-import { RetryAfterError } from "inngest";
+import { DKG_MINT_TARGET_KA_STEP } from "@desci/shared";
 import {
   extractPublicationMetadata,
   extractTeiFromPdf,
@@ -9,18 +8,11 @@ import {
 } from "../../../agents/pdf-to-ka/index.js";
 import { fetchPdfByCid } from "../../../ipfs/index.js";
 import { InngestEvent, inngest } from "../client.js";
-
-/**
- * How long to wait before retrying a write the DKG network declined.
- *
- * Inngest's own backoff starts in seconds, which puts the retry back on the
- * same peers that were unavailable a moment earlier. Run
- * `01M39PSEVNBT6SHX18EGQZ67D8` spent all three of its attempts inside six
- * minutes for exactly that reason and then gave up, when the condition it hit
- * — `CORE_TEMPORARILY_UNAVAILABLE` on one peer and a transport timeout on
- * another — is the kind that clears on its own given a few minutes.
- */
-const QUORUM_RETRY_DELAY = "2m";
+import {
+  DKG_WRITE_FINISH_TIMEOUT,
+  DKG_WRITE_RETRIES,
+  withQuorumBackoff,
+} from "../dkg-write-policy.js";
 
 /**
  * Daemon asset name for a publish, derived from the id of the event that
@@ -34,34 +26,11 @@ export function targetKaName(publishEventId: string): string {
   return `desci-pub-${publishEventId}`;
 }
 
-/**
- * Ask Inngest for a long wait when the DKG declined the write, and leave every
- * other error exactly as it was. This does not make a failure retryable that
- * was not already: it only changes *when* the retry happens, for the one cause
- * where trying again immediately is known to be pointless.
- */
-export function withQuorumBackoff(err: unknown): unknown {
-  const message = err instanceof Error ? err.message : String(err);
-  if (!isQuorumFailure(message)) {
-    return err;
-  }
-  return new RetryAfterError(message, QUORUM_RETRY_DELAY, { cause: err });
-}
-
 export const publishPdfFunction = inngest.createFunction(
   {
     id: "publish-pdf",
-    // Five attempts rather than three, because the three the mint had were
-    // spent in under six minutes against a peer set that needed longer than
-    // that to recover. Retries are cheap here: every earlier stage is memoized
-    // and `mintAsset` returns the existing UAL when the name is already
-    // minted, so an attempt that is no longer needed costs one state read.
-    retries: 4,
-    // Has to cover the whole retry schedule, not one attempt: five attempts of
-    // a mint that has been measured at ~300s, plus the 2m waits between the
-    // ones that hit quorum. `PUBLISH_JOB_TTL_MS` in `apps/web` mirrors this
-    // number so a stored event id cannot outlive the run it names.
-    timeouts: { finish: "45m" },
+    retries: DKG_WRITE_RETRIES,
+    timeouts: { finish: DKG_WRITE_FINISH_TIMEOUT },
   },
   { event: InngestEvent.PdfSubmitted },
   async ({ event, runId, step }) => {
