@@ -18,10 +18,12 @@ pnpm --filter web lint
 |---|---|---|
 | `/` | `src/app/(landing)/page.tsx` | Hero, KA catalog, how-it-works, both flow explainers, roadmap. `dynamic = "force-dynamic"` |
 | `/rate-ka` | `src/app/rate-ka/page.tsx` | Eligible-KA table + paste-a-UAL field + wallet `requestPhase1`. `dynamic = "force-dynamic"` |
-| `/api/inngest` | `src/app/api/inngest/route.ts` | `GET` / `POST` / `PUT` via `inngest/next` `serve`. Registers all 5 functions from `@desci/agents/inngest` |
+| `/api/inngest` | `src/app/api/inngest/route.ts` | `GET` / `POST` / `PUT` via `inngest/next` `serve`. Registers all 6 functions from `@desci/agents/inngest` |
 | `/api/webhooks/alchemy` | `src/app/api/webhooks/alchemy/route.ts` | `POST`, `runtime = "nodejs"`. HMAC-verifies the raw body, filters logs to the `RatingController` address, decodes them with `ratingControllerAbi`, and dispatches Inngest events |
 
 Layout (`src/app/layout.tsx`) wraps every page in `AppKitProvider` with a shared `SiteHeader` and `Footer`, and passes the request cookie header through for wagmi SSR hydration.
+
+`src/app/error.tsx` and `src/app/global-error.tsx` are the error boundaries. The app ran without either, and the consequence was not subtle: one uncaught client throw anywhere in the tree replaced the whole document with the framework's default error page, so a publish that failed took the catalog and the header with it. `error.tsx` keeps a failure inside the page; `global-error.tsx` covers a failure in the layout itself and therefore owns `html` and `body`, imports the stylesheet itself, and is deliberately free of providers, fonts and UI primitives — a boundary that can throw is not a boundary. Both surface `error.digest` rather than `error.message`, which React redacts in production.
 
 ## Server data access
 
@@ -32,8 +34,8 @@ All DKG and on-chain reads happen on the server. `src/lib/evm-client.ts` and `sr
 | `lib/dkg-availability.ts` | `getDkgAvailability` | One cheap `probeDkgDaemon` per request, wrapped in React `cache()`. Gates the catalog and the Publish button, and returns a generic user-facing message rather than leaking probe internals |
 | `lib/queries/dkg/kas.ts` | `getKas`, `queryKas` | `queryPublicationsWithRatings` SPARQL, newest-first by token id, capped at `LANDING_KA_CATALOG_LIMIT` (12). Rows with no rating in SPARQL fall back to an on-chain `getRatingByUal` multicall, so scores still appear during DKG sync lag |
 | `lib/queries/contract/ratings.ts` | `getRatingByUal`, `queryRatingByUal`, `getUnratedKas`, `queryUnratedKas` | Single-UAL read, plus the `/rate-ka` list filtered to `phase === Unrated` (pending rows kept so users can see their in-flight request) |
-| `lib/queries/dkg/publish-status.ts` | `getPublishStatus` | Polls the Inngest REST API (`/v1/events/{id}/runs`), maps run status to `PublishJobStatus` and carries `run_started_at` through as `startedAt`. Answers a `PublishStatusRead` union and **never throws** — see below |
-| `lib/commands/dkg/publish-ka.ts` | `uploadAndPin` | Server action: validate PDF → `pinPdfToIpfs` → `inngest.send(pdf.submitted)` → return the event id |
+| `lib/queries/dkg/publish-status.ts` | `getPublishStatus` | Polls the Inngest REST API (`/v1/events/{id}/runs`), maps run status to `PublishJobStatus`, and carries through `run_started_at` as `startedAt`, the failure message, and the `stepId` it failed on. Answers a `PublishStatusRead` union and **never throws** — see below |
+| `lib/commands/dkg/publish-ka.ts` | `uploadAndPin`, `retryPublishMint` | Server actions: validate PDF → `pinPdfToIpfs` → `inngest.send(pdf.submitted)` → return the event id; and `inngest.send(pdf.mint-requested)` carrying the original event id, to finish a publish that stored the KA but never minted it |
 | `lib/evm-client.ts` | `getEvmClient` | Lazy cached viem public client for Base Sepolia |
 
 Each `get*` throws so server components can render an unavailable state; the paired `query*` wrapper never throws and is what TanStack Query calls on refetch.
@@ -55,7 +57,7 @@ components/
 
 **Publish KA** (`publish/use-publish-ka.ts`): the modal accepts a PDF up to 5 MB (`MAX_PDF_BYTES`, enforced in both the UI and the server action), calls `uploadAndPin`, then polls run status every 3 s (`PUBLISH_STATUS_POLL_MS`) until the Inngest job returns the UAL, and invalidates the catalog query on success. No wallet is involved — the DKG daemon signs the KA mint.
 
-**The job outlives the modal.** `lib/publish-job-store.ts` keeps the event id in `localStorage`, expiry-checked on every read against `PUBLISH_JOB_TTL_MS` — 20 minutes, matching the `timeouts.finish` window `publishPdfFunction` gives a run, so an older id cannot name a live job. Opening the modal reads the id back and resumes the poll immediately rather than offering a button, because `errorAction` would read `None` for a restored id and leave only Clear. `sessionStorage` would not do: it dies with the tab, and closing the tab during a six-minute wait is the case this exists for. The direction of failure decides it — `canSubmit` reads an *absent* id as "nothing was sent" and re-arms Publish, which mints a second Target KA, whereas restoring an id only ever costs a poll. Closing the modal and Clear are therefore different actions: closing keeps the job, Clear abandons it and drops the id, as does a `Completed` or `Failed` verdict.
+**The job outlives the modal.** `lib/publish-job-store.ts` keeps the event id in `localStorage`, expiry-checked on every read against `PUBLISH_JOB_TTL_MS` — 45 minutes, matching the `timeouts.finish` window `publishPdfFunction` gives a run, so an older id cannot name a live job. Opening the modal reads the id back and resumes the poll immediately rather than offering a button, because `errorAction` would read `None` for a restored id and leave only Clear. `sessionStorage` would not do: it dies with the tab, and closing the tab during a six-minute wait is the case this exists for. The direction of failure decides it — `canSubmit` reads an *absent* id as "nothing was sent" and re-arms Publish, which mints a second Target KA, whereas restoring an id only ever costs a poll. Closing the modal and Clear are therefore different actions: closing keeps the job, Clear abandons it and drops the id, as does a `Completed` or `Failed` verdict.
 
 **Progress is drawn against the clock,** since the Inngest runs endpoint reports a run's status and output and carries no step data at all — "Extracting with GROBID" is not available to ask for. `progressForPhase(phase, elapsedMs)` eases from 30 % toward a 95 % ceiling it never reaches, using the `startedAt` the run object does carry, and the panel ticks itself once a second because the poll only writes state when something changes. A flat bar over six minutes reads as a hang; one that never fills is honest about a run that is late.
 
@@ -66,6 +68,10 @@ The poll survives two kinds of non-answer: Inngest reporting no run yet (`PUBLIS
 | `Retry` | no `eventId` — the upload or the `send()` failed | Publish again, PDF still selected |
 | `Resume` | the poll gave up without a verdict | "Resume checking" — `startPolling(eventId)` again |
 | `None` | Inngest returned `Failed` or `Cancelled` | only Clear, which drops the stored id and re-arms Publish |
+
+**`None` is not always a dead end, and the step id is what tells them apart.** Inngest serialises a step failure with the id of the step that failed, so a verdict naming `dkg-mint-target-ka` means every stage before it succeeded and the KA is on the daemon with only its NFT missing. That case gets a **Retry minting** button, which calls `retryPublishMint` with the *original* event id — the name the asset was stored under derives from it — and then watches the mint run instead. Publishing again is the wrong move there, because a new upload takes a new event id, derives a new name, and mints a second Target KA for a paper the graph already holds; `PublishKaErrorNotice` says so rather than leaving the user to work it out.
+
+The notice also distinguishes a DKG write-quorum failure (`storage_ack_insufficient`, detected by `isQuorumFailure` from `@desci/shared`) from a publish that is actually wrong. A quorum failure is the network declining at that moment — peers unavailable or timing out — so the copy says the same PDF will usually go through later, instead of the generic "Clear to start over" that invites a duplicate.
 
 `canSubmit` therefore requires `eventId == null`, and so does the `Error → Idle` recovery in `onFileChange`: with a job in flight, picking a new file must not re-arm Publish. The action is derived from `eventId` and `watchLost` rather than stored, so no stale flag can offer `Resume` once the event id is gone.
 
