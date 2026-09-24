@@ -37,6 +37,13 @@ export type PublishStatusResult = {
   error?: string;
   /** `run_started_at` as epoch ms. Absent until Inngest reports a run. */
   startedAt?: number;
+  /**
+   * Which step a failed run stopped on, when Inngest reported one. It is the
+   * only thing in the run object that says how far the pipeline got, and the
+   * modal needs that to tell "nothing happened" from "the KA is stored and
+   * only the mint is missing".
+   */
+  failedStep?: string;
 };
 
 /**
@@ -82,17 +89,19 @@ export const PUBLISH_STATUS_GRACE_TICKS = 10;
  * through every one of them. The window is therefore chosen as tolerated
  * blackout rather than as a count — 40 ticks at 3 s is two minutes, long
  * enough to ride out a deployment, short enough that a genuinely dead poll
- * still reports well inside the job's own 20m finish window.
+ * still reports well inside the job's own 45m finish window.
  */
 export const PUBLISH_STATUS_ERROR_GRACE_TICKS = 40;
 
 /**
  * How long a stored event id may still be believed. `publishPdfFunction` gives
- * a run a 20m finish window, so an id older than that cannot name a live job.
- * Without the expiry a forgotten id would be restored over an unrelated later
- * publish and watch a run that ended hours ago.
+ * a run a 45m finish window — five attempts of a mint that can take minutes,
+ * plus the 2m waits between the ones the DKG declines — so an id older than
+ * that cannot name a live job. Without the expiry a forgotten id would be
+ * restored over an unrelated later publish and watch a run that ended hours
+ * ago.
  */
-export const PUBLISH_JOB_TTL_MS = 20 * 60 * 1000;
+export const PUBLISH_JOB_TTL_MS = 45 * 60 * 1000;
 
 /** Accept common PDF MIME types and `.pdf` extension (some OS/browsers omit type). */
 export function isPdfFile(file: File): boolean {

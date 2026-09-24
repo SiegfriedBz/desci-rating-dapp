@@ -11,10 +11,13 @@ type PublishKaFooterProps = {
   canSubmit: boolean;
   /** Read only while the phase is Error. */
   errorAction: PublishErrorAction;
+  /** The run failed on the mint, so the KA is stored and can still be minted. */
+  canRetryMint: boolean;
   onClose: () => void;
   onReset: () => void;
   onSubmit: () => void;
   onResume: () => void;
+  onRetryMint: () => void;
 };
 
 export function PublishKaFooter({
@@ -22,10 +25,12 @@ export function PublishKaFooter({
   isBusy,
   canSubmit,
   errorAction,
+  canRetryMint,
   onClose,
   onReset,
   onSubmit,
   onResume,
+  onRetryMint,
 }: PublishKaFooterProps) {
   if (phase === PublishModalPhase.Done) {
     return (
@@ -69,6 +74,12 @@ export function PublishKaFooter({
         <Button type="button" onClick={onResume} disabled={isBusy}>
           <RefreshCwIcon className="size-4" />
           Resume checking
+        </Button>
+      ) : null}
+      {inError && canRetryMint ? (
+        <Button type="button" onClick={onRetryMint} disabled={isBusy}>
+          <RefreshCwIcon className="size-4" />
+          Retry minting
         </Button>
       ) : null}
       {canPublish ? (

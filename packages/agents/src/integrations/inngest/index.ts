@@ -5,6 +5,7 @@ export type {
   RequestCancelledData,
   OracleUpdatedData,
   PdfSubmittedData,
+  PdfMintRequestedData,
 } from "./client.js";
 export {
   processRatingControllerEvent,
@@ -17,3 +18,4 @@ export {
   oracleUpdatedLogFunction,
 } from "./functions/log-contract-event.js";
 export { publishPdfFunction } from "./functions/publish-pdf.js";
+export { publishPdfMintFunction } from "./functions/publish-pdf-mint.js";

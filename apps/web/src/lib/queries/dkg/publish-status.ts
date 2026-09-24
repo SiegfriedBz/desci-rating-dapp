@@ -6,11 +6,18 @@ import {
   type PublishStatusRead,
 } from "@/lib/publish-types";
 
+/**
+ * Only the two scalars are declared. `output` is whatever the function
+ * returned, or — on a failure — whatever the SDK serialised, so it is read
+ * field by field rather than described by a type we do not control. The
+ * previous shape here claimed `{ ual?: string; error?: string }` and that
+ * claim is exactly what hid a production failure: see {@link toErrorText}.
+ */
 type InngestRun = {
   status?: string;
   run_started_at?: string;
-  output?: { ual?: string; error?: string } | string;
-  error?: string | { message?: string };
+  output?: unknown;
+  error?: unknown;
 };
 
 type InngestRunsResponse = {
@@ -45,6 +52,34 @@ function describeCause(err: unknown): string {
   return cause instanceof Error && cause.message
     ? `${err.message} (${cause.message})`
     : err.message;
+}
+
+/** A trimmed string property, or nothing. Never assumes the key is a string. */
+function readString(value: unknown, key: string): string | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const candidate = (value as Record<string, unknown>)[key];
+  return typeof candidate === "string" && candidate.trim()
+    ? candidate.trim()
+    : undefined;
+}
+
+/**
+ * Turn whatever Inngest recorded for a failed run into text a person can read.
+ *
+ * The SDK serialises a step failure through its `jsonErrorSchema`, which emits
+ * `{ name, message, stack }` and folds any `error` field it was handed *into*
+ * `message`. `message` is therefore the field that carries the cause, and
+ * `error` is one the schema never writes. Reading only `error` is why a real
+ * `storage_ack_insufficient` quorum failure reached the modal as the generic
+ * "Publish job failed" with the actual reason sitting unread in the payload.
+ */
+function toErrorText(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value.trim() || undefined;
+  }
+  return readString(value, "message") ?? readString(value, "error");
 }
 
 function parseStartedAt(raw: string | undefined): number | undefined {
@@ -125,25 +160,23 @@ export async function getPublishStatus(
     return { ok: true, data: { status: PublishJobStatus.NotFound } };
   }
 
-  let ual: string | undefined;
-  let error: string | undefined;
-
-  if (run.output && typeof run.output === "object") {
-    ual = run.output.ual;
-    error = run.output.error;
-  }
-  if (!error && typeof run.error === "string") {
-    error = run.error;
-  } else if (!error && run.error && typeof run.error === "object") {
-    error = run.error.message;
-  }
+  const status = mapInngestStatus(run.status);
+  // The error is read only for a verdict of Failed. A run that succeeded puts
+  // its own return value in `output`, and nothing there should be mistaken for
+  // a diagnosis just because it happens to carry a `message`.
+  const failed = status === PublishJobStatus.Failed;
 
   return {
     ok: true,
     data: {
-      status: mapInngestStatus(run.status),
-      ual,
-      error,
+      status,
+      ual: readString(run.output, "ual"),
+      error: failed
+        ? (toErrorText(run.output) ?? toErrorText(run.error))
+        : undefined,
+      // `jsonErrorSchema` passes unknown keys through, so the `stepId` the SDK
+      // attaches to a `StepError` survives into the run's output.
+      failedStep: failed ? readString(run.output, "stepId") : undefined,
       startedAt: parseStartedAt(run.run_started_at),
     },
   };
