@@ -30,13 +30,14 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
     file,
     error,
     eventId,
+    startedAt,
     ual,
     copied,
     fileInputRef,
     isBusy,
     canSubmit,
     errorAction,
-    reset,
+    clearJob,
     onFileChange,
     onSubmit,
     resumeChecking,
@@ -72,6 +73,7 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
                 : PublishModalPhase.Processing
             }
             eventId={eventId}
+            startedAt={startedAt}
           />
         ) : null}
 
@@ -106,7 +108,7 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
           canSubmit={canSubmit}
           errorAction={errorAction}
           onClose={() => onOpenChange(false)}
-          onReset={reset}
+          onReset={clearJob}
           onSubmit={() => void onSubmit()}
           onResume={resumeChecking}
         />

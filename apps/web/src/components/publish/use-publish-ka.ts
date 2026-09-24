@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { uploadAndPin } from "@/lib/commands/dkg/publish-ka";
+import {
+  clearPublishJob,
+  readPublishJob,
+  savePublishJob,
+} from "@/lib/publish-job-store";
 import { getPublishStatus } from "@/lib/queries/dkg/publish-status";
 import { queryKeys } from "@/lib/queries/query-keys";
 import {
@@ -26,6 +31,8 @@ export function usePublishKa(open: boolean) {
   const [eventId, setEventId] = useState<string | null>(null);
   /** The poll stopped without a verdict, so the job's fate is unknown. */
   const [watchLost, setWatchLost] = useState(false);
+  /** When Inngest started the run, for the elapsed clock. */
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [ual, setUal] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -42,12 +49,17 @@ export function usePublishKa(open: boolean) {
     }
   }, []);
 
+  /**
+   * Empty the modal without touching the stored job. Closing the modal is not
+   * a decision to abandon a running publish, so the id has to outlive this.
+   */
   const reset = useCallback(() => {
     setPhase(PublishModalPhase.Idle);
     setFile(null);
     setError(null);
     setEventId(null);
     setWatchLost(false);
+    setStartedAt(null);
     setUal(null);
     setCopied(false);
     clearPoll();
@@ -58,11 +70,11 @@ export function usePublishKa(open: boolean) {
     }
   }, [clearPoll]);
 
-  useEffect(() => {
-    if (!open) {
-      reset();
-    }
-  }, [open, reset]);
+  /** Clear, the button: abandoning the job on purpose, so the id goes too. */
+  const clearJob = useCallback(() => {
+    clearPublishJob();
+    reset();
+  }, [reset]);
 
   useEffect(() => clearPoll, [clearPoll]);
 
@@ -73,12 +85,45 @@ export function usePublishKa(open: boolean) {
       failuresRef.current = 0;
       setWatchLost(false);
 
+      /**
+       * A reading we did not get. The job is untouched by it — only our view
+       * of the job is — so keep the interval alive and stay in `Processing`
+       * until the blackout has run long enough to be worth reporting.
+       *
+       * Two paths arrive here and they are not the same failure. A returned
+       * `ok: false` means the action ran and Inngest is what refused, so the
+       * message is ours and says which hop broke. A throw means the call
+       * itself never completed — no network, or a request cut off mid-flight
+       * while the deployment behind it was replaced. Both leave the job's
+       * fate unknown, which is all the grace window cares about.
+       */
+      const noteLostReading = (message: string) => {
+        failuresRef.current += 1;
+        if (failuresRef.current > PUBLISH_STATUS_ERROR_GRACE_TICKS) {
+          clearPoll();
+          setWatchLost(true);
+          setError(message);
+          setPhase(PublishModalPhase.Error);
+          return;
+        }
+        setPhase(PublishModalPhase.Processing);
+      };
+
       const tick = async () => {
         try {
-          const result = await getPublishStatus(id);
+          const read = await getPublishStatus(id);
+          if (!read.ok) {
+            noteLostReading(read.error);
+            return;
+          }
+          const result = read.data;
           failuresRef.current = 0;
+          if (result.startedAt != null) {
+            setStartedAt(result.startedAt);
+          }
           if (result.status === PublishJobStatus.Completed) {
             clearPoll();
+            clearPublishJob();
             setUal(result.ual ?? null);
             setPhase(PublishModalPhase.Done);
             void queryClient.invalidateQueries({ queryKey: queryKeys.kas() });
@@ -86,7 +131,10 @@ export function usePublishKa(open: boolean) {
           }
           if (result.status === PublishJobStatus.Failed) {
             // A verdict, not a lost reading: there is nothing left to watch.
+            // Both verdicts drop the stored id — only an unresolved job is
+            // worth restoring, and neither of these can be resumed.
             clearPoll();
+            clearPublishJob();
             setError(result.error || "Publish job failed");
             setPhase(PublishModalPhase.Error);
             return;
@@ -108,18 +156,7 @@ export function usePublishKa(open: boolean) {
           missesRef.current = 0;
           setPhase(PublishModalPhase.Processing);
         } catch (err) {
-          // A throw is a lost reading, not a lost job — keep the interval
-          // alive and stay in Processing until the blackout runs long enough
-          // to be worth reporting.
-          failuresRef.current += 1;
-          if (failuresRef.current > PUBLISH_STATUS_ERROR_GRACE_TICKS) {
-            clearPoll();
-            setWatchLost(true);
-            setError(err instanceof Error ? err.message : String(err));
-            setPhase(PublishModalPhase.Error);
-            return;
-          }
-          setPhase(PublishModalPhase.Processing);
+          noteLostReading(err instanceof Error ? err.message : String(err));
         }
       };
 
@@ -130,6 +167,28 @@ export function usePublishKa(open: boolean) {
     },
     [clearPoll, queryClient]
   );
+
+  useEffect(() => {
+    if (!open) {
+      reset();
+      return;
+    }
+
+    // Opening finds the modal empty whether it was never used, reopened, or
+    // rebuilt by a reload — and in the last two a job may still be running.
+    // The poll starts here rather than behind a button because until it does,
+    // `errorAction` would read `None` for a restored id and offer only Clear.
+    // `startPolling` zeroes both grace counters, so a rejoined poll gets the
+    // full two-minute blackout allowance from now and inherits nothing from
+    // the blackout that may have ended the last one.
+    const stored = readPublishJob();
+    if (!stored) {
+      return;
+    }
+    setEventId(stored);
+    setPhase(PublishModalPhase.Processing);
+    startPolling(stored);
+  }, [open, reset, startPolling]);
 
   /**
    * The job outlived the poll, so the recovery is to watch again — never to
@@ -187,6 +246,9 @@ export function usePublishKa(open: boolean) {
       const formData = new FormData();
       formData.set("file", file);
       const { eventId: id } = await uploadAndPin(formData);
+      // Stored before the poll starts: from here on the job exists, and an id
+      // only React knows about is one a reload would lose.
+      savePublishJob(id);
       setEventId(id);
       setPhase(PublishModalPhase.Processing);
       startPolling(id);
@@ -214,6 +276,7 @@ export function usePublishKa(open: boolean) {
     file,
     error,
     eventId,
+    startedAt,
     ual,
     copied,
     fileInputRef,
@@ -231,7 +294,7 @@ export function usePublishKa(open: boolean) {
         : watchLost
           ? PublishErrorAction.Resume
           : PublishErrorAction.None,
-    reset,
+    clearJob,
     onFileChange,
     onSubmit,
     resumeChecking,

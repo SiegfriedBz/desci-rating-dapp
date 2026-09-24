@@ -24,6 +24,11 @@ alwaysApply: false
 - Shell phase: connect + wrong-network only — no contract txs, no `requestPhase1` / `getRatingByUal` in the UI yet.
 - Project id: `NEXT_PUBLIC_REOWN_PROJECT_ID` from repo-root `.env` via `@desci/env`. Missing key must not break `pnpm build`.
 
+## Server actions
+
+- A server action must **return** its failures, never throw them. React replaces a thrown message with a generic "omitted in production builds" string plus a digest before it reaches the browser, so a thrown diagnostic is one no user ever reads. Return `{ ok: false, error }` and let the caller decide what it means — see `getPublishStatus`.
+- Server actions are public endpoints. The action id is in the client bundle and anyone can replay the POST, so authorize inside the action; rendering the UI behind a check is not a boundary.
+
 ## Scope guard
 
 - Do not add new `app/api/*` routes unless the task is ingest/webhooks.

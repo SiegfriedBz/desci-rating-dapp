@@ -3,11 +3,12 @@
 import { env, inngestApiBaseUrl, inngestEnvName } from "@desci/env";
 import {
   PublishJobStatus,
-  type PublishStatusResult,
+  type PublishStatusRead,
 } from "@/lib/publish-types";
 
 type InngestRun = {
   status?: string;
+  run_started_at?: string;
   output?: { ual?: string; error?: string } | string;
   error?: string | { message?: string };
 };
@@ -33,15 +34,44 @@ function mapInngestStatus(raw: string | undefined): PublishJobStatus {
 }
 
 /**
- * Poll Inngest for the status of a `pdf.submitted` run.
- * Called every few seconds from the Publish KA modal.
+ * `fetch` rejects with a bare "fetch failed" and puts the useful half —
+ * `connect ECONNREFUSED 127.0.0.1:8288`, and the like — on `cause`.
+ */
+function describeCause(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return String(err);
+  }
+  const cause = err.cause;
+  return cause instanceof Error && cause.message
+    ? `${err.message} (${cause.message})`
+    : err.message;
+}
+
+function parseStartedAt(raw: string | undefined): number | undefined {
+  if (!raw) {
+    return undefined;
+  }
+  const ms = Date.parse(raw);
+  return Number.isNaN(ms) ? undefined : ms;
+}
+
+/**
+ * Poll Inngest for the status of a `pdf.submitted` run. Called every few
+ * seconds from the Publish KA modal, for as long as the job takes.
+ *
+ * Nothing here throws on a failed read. Every failure is returned as
+ * `{ ok: false, error }`, because a thrown server-action error is redacted to
+ * a generic string before it reaches the browser in production — see
+ * {@link PublishStatusRead}. Throwing would leave the modal unable to say
+ * which hop broke, which is the one thing a six-minute poll must be able to
+ * do. The caller decides what a lost reading means; this only reports it.
  */
 export async function getPublishStatus(
   eventId: string
-): Promise<PublishStatusResult> {
+): Promise<PublishStatusRead> {
   const trimmed = eventId.trim();
   if (!trimmed) {
-    throw new Error("eventId is required");
+    return { ok: false, error: "eventId is required" };
   }
 
   const headers = new Headers();
@@ -54,28 +84,47 @@ export async function getPublishStatus(
     headers.set("x-inngest-env", inngestEnvName);
   }
 
-  const res = await fetch(
-    `${inngestApiBaseUrl}/v1/events/${encodeURIComponent(trimmed)}/runs`,
-    {
-      headers,
-      cache: "no-store",
-    }
-  );
+  let res: Response;
+  try {
+    res = await fetch(
+      `${inngestApiBaseUrl}/v1/events/${encodeURIComponent(trimmed)}/runs`,
+      {
+        headers,
+        cache: "no-store",
+      }
+    );
+  } catch (err) {
+    console.error("[publish-status] Inngest unreachable:", err);
+    return {
+      ok: false,
+      error: `Inngest status poll never reached Inngest: ${describeCause(err)}`,
+    };
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(
-      `Inngest status poll failed (HTTP ${res.status}): ${body.slice(0, 200)}`
-    );
+    return {
+      ok: false,
+      error: `Inngest status poll failed (HTTP ${res.status}): ${body.slice(0, 200)}`,
+    };
   }
 
-  const json = (await res.json()) as InngestRunsResponse;
+  let json: InngestRunsResponse;
+  try {
+    json = (await res.json()) as InngestRunsResponse;
+  } catch (err) {
+    console.error("[publish-status] Inngest sent a non-JSON body:", err);
+    return {
+      ok: false,
+      error: "Inngest status poll got a 200 that was not JSON",
+    };
+  }
+
   const run = json.data?.[0];
   if (!run) {
-    return { status: PublishJobStatus.NotFound };
+    return { ok: true, data: { status: PublishJobStatus.NotFound } };
   }
 
-  const status = mapInngestStatus(run.status);
   let ual: string | undefined;
   let error: string | undefined;
 
@@ -89,5 +138,13 @@ export async function getPublishStatus(
     error = run.error.message;
   }
 
-  return { status, ual, error };
+  return {
+    ok: true,
+    data: {
+      status: mapInngestStatus(run.status),
+      ual,
+      error,
+      startedAt: parseStartedAt(run.run_started_at),
+    },
+  };
 }
