@@ -15,6 +15,35 @@ export const RATING_PHASE = {
   Phase3Completed: 3,
 } as const;
 
+/**
+ * Inngest step id for the mint half of a publish. Shared because a failure
+ * naming this step is the one case where the KA is already stored on the
+ * daemon and only the NFT is missing, which the web app has to recognise to
+ * avoid telling the user to upload the paper a second time.
+ */
+export const DKG_MINT_TARGET_KA_STEP = "dkg-mint-target-ka";
+
+/**
+ * Tokens the DKG daemon puts in a write it could not get quorum for. Matched
+ * against the message because the daemon reports this as prose inside an
+ * ordinary failure and gives it no code of its own: `storage_ack_insufficient`
+ * and the `QuorumUnmetError` summary are the only stable strings in it.
+ */
+const QUORUM_FAILURE_MARKERS = ["storage_ack_insufficient", "QuorumUnmetError"];
+
+/**
+ * True when the DKG network declined a write rather than the write being
+ * wrong. Peers answer `CORE_TEMPORARILY_UNAVAILABLE` or time out, which
+ * describes the network at that moment and says nothing about the payload — so
+ * it is worth waiting and retrying, and it is never worth publishing again.
+ */
+export function isQuorumFailure(error: string | null | undefined): boolean {
+  if (!error) {
+    return false;
+  }
+  return QUORUM_FAILURE_MARKERS.some((marker) => error.includes(marker));
+}
+
 export type DkgConfig = {
   /** Override daemon base URL, e.g. http://127.0.0.1:9200 */
   apiUrl?: string;

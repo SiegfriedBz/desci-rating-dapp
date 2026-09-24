@@ -44,3 +44,34 @@ export async function uploadAndPin(
 
   return { eventId };
 }
+
+/**
+ * Finish a publish whose Target KA was stored but never minted.
+ *
+ * Takes the id of the original `pdf.submitted` event, because that id is what
+ * the asset name was derived from. Sending `pdf.submitted` again would take a
+ * new id and publish a second Knowledge Asset for the same paper, which is the
+ * outcome this whole path exists to avoid.
+ *
+ * Returns the new event id: the modal watches the mint run from here on, and
+ * the publish run it replaces has already reached a verdict.
+ */
+export async function retryPublishMint(
+  publishEventId: string
+): Promise<{ eventId: string }> {
+  const trimmed = publishEventId.trim();
+  if (!trimmed) {
+    throw new Error("publishEventId is required");
+  }
+
+  const sent = await inngest.send({
+    name: InngestEvent.PdfMintRequested,
+    data: { publishEventId: trimmed },
+  });
+  const eventId = sent.ids[0];
+  if (!eventId) {
+    throw new Error("Inngest did not return an event id");
+  }
+
+  return { eventId };
+}

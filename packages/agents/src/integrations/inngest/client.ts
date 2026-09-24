@@ -8,6 +8,7 @@ export enum InngestEvent {
   RequestCancelled = "RatingController/request.cancelled",
   OracleUpdated = "RatingController/oracle.updated",
   PdfSubmitted = "pdf.submitted",
+  PdfMintRequested = "pdf.mint-requested",
 }
 
 /** Hex string for addresses / bytes32 (validated at runtime). */
@@ -53,11 +54,24 @@ export const pdfSubmittedSchema = z.object({
   filename: z.string().min(1),
 });
 
+/**
+ * Mint the Target KA a publish already stored but never anchored.
+ *
+ * Carries the *original* `pdf.submitted` event id and nothing else, because
+ * that id is what the asset name was derived from: re-sending `pdf.submitted`
+ * would take a fresh id, derive a fresh name, and publish a second Knowledge
+ * Asset for a paper the daemon already holds.
+ */
+export const pdfMintRequestedSchema = z.object({
+  publishEventId: z.string().min(1),
+});
+
 export type Phase1RequestedData = z.infer<typeof phase1RequestedSchema>;
 export type Phase1FulfilledData = z.infer<typeof phase1FulfilledSchema>;
 export type RequestCancelledData = z.infer<typeof requestCancelledSchema>;
 export type OracleUpdatedData = z.infer<typeof oracleUpdatedSchema>;
 export type PdfSubmittedData = z.infer<typeof pdfSubmittedSchema>;
+export type PdfMintRequestedData = z.infer<typeof pdfMintRequestedSchema>;
 
 export const inngest = new Inngest({
   id: "desci-rating-dapp",
@@ -67,5 +81,6 @@ export const inngest = new Inngest({
     [InngestEvent.RequestCancelled]: requestCancelledSchema,
     [InngestEvent.OracleUpdated]: oracleUpdatedSchema,
     [InngestEvent.PdfSubmitted]: pdfSubmittedSchema,
+    [InngestEvent.PdfMintRequested]: pdfMintRequestedSchema,
   }),
 });

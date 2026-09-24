@@ -78,12 +78,16 @@ See [src/integrations/README.md](src/integrations/README.md). External adapters 
 
 See [src/integrations/inngest/README.md](src/integrations/inngest/README.md). App id `desci-rating-dapp`.
 
-Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `oracle.updated`, plus `pdf.submitted`.
+Events: `RatingController/phase1.requested|fulfilled`, `request.cancelled`, `oracle.updated`, plus `pdf.submitted` and `pdf.mint-requested`.
 
 - `adapters/rating-controller-event.ts` — decoded log → Inngest events (idempotency keys per log)
+- `dkg-write-policy.ts` — retry policy every DKG write shares: `withQuorumBackoff`, `DKG_WRITE_RETRIES`, `DKG_WRITE_FINISH_TIMEOUT`, `QUORUM_RETRY_DELAY`
 - `functions/phase1-requested.ts` — fetch KA → `runKaScorerAgent` → store R-KA → mint R-KA → `fulfillPhase1OnChain`
 - `functions/publish-pdf.ts` — `extractTeiFromPdf` → `extractPublicationMetadata` → `storePublicationToDkg` → `mintPublicationToDkg`, one daemon call per step
+- `functions/publish-pdf-mint.ts` — mint alone, for a Target KA a publish stored and never anchored
 - `functions/log-contract-event.ts` — log-only handlers (`phase1-fulfilled-log`, `request-cancelled-log`, `oracle-updated-log`)
+
+`dkg-write-policy.ts` is the single home the numbers have to keep. Both flows finish in the same `mintAsset` against the same peers, so a quorum decline is not specific to either, and the retry budget that survives one has to be the budget the other gets. It is a module rather than a shared constant in the function that needed it first because that is precisely the shape that drifted: the publish flow was hardened against a production decline while the rating flow kept the defaults.
 
 Repo-root `pnpm inngest:dev` → `http://localhost:3000/api/inngest`.
 

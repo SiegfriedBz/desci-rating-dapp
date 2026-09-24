@@ -143,11 +143,13 @@ flowchart TD
 
 **Why GROBID *and* Gemini.** GROBID is a specialised model that converts PDF layout into structured TEI-XML — it recognises title blocks, author affiliations, and reference lists positionally. Gemini then reads that clean XML to extract semantic fields (methods, materials, RRIDs, data repository links). Running an LLM directly on raw PDF text is both worse and more expensive.
 
-**Why a durable job.** GROBID + Gemini + DKG publish routinely exceeds a single HTTP request budget — an observed end-to-end run took 6m 5s — so the web path enqueues an Inngest job (`timeouts.finish: "20m"`, 2 retries) and the modal polls run status every 3 s.
+**Why a durable job.** GROBID + Gemini + DKG publish routinely exceeds a single HTTP request budget — an observed end-to-end run took 6m 5s — so the web path enqueues an Inngest job (`timeouts.finish: "45m"`, 4 retries) and the modal polls run status every 3 s.
 
 **The poll is not the job.** A poll that cannot read the run says nothing about the run, so the modal tolerates two minutes of consecutive failed reads before reporting anything. When it does report, what it offers depends on what is known to be running, because republishing sends a second `pdf.submitted` under a new `desci-pub-*` name and none of the idempotency below would catch it. Publishing again is offered only where nothing was sent — the upload or the `send()` itself failed. Where the poll simply lost the run, the button resumes the poll instead; where Inngest returned a verdict of failed, the only way on is to clear the modal deliberately.
 
-**Nor is it the page.** The event id is kept in `localStorage` under a 20-minute expiry, so closing the modal, reloading, or coming back in a new tab rejoins the running job instead of presenting an empty form. That form is the hazard: a wait long enough to walk away from is long enough to return to, and a publish button re-armed while the first job is still running mints a second Target KA for the same paper. Persistence here is the duplicate-mint guard, not a convenience.
+**Nor is it the page.** The event id is kept in `localStorage` under a 45-minute expiry, so closing the modal, reloading, or coming back in a new tab rejoins the running job instead of presenting an empty form. That form is the hazard: a wait long enough to walk away from is long enough to return to, and a publish button re-armed while the first job is still running mints a second Target KA for the same paper. Persistence here is the duplicate-mint guard, not a convenience.
+
+**A publish can also half-succeed.** The DKG requires three peers to acknowledge a write, and when not enough answer the daemon fails with `storage_ack_insufficient` — the network declining at that moment, unrelated to the paper. If that lands on the mint, the KA is on the daemon and only the NFT is missing. Two things follow from it. The job retries on a two-minute delay rather than Inngest's default seconds-later backoff, because the default lands on the same unavailable peers; run `01M39PSEVNBT6SHX18EGQZ67D8` burned three attempts in 5m 21s that way. And if the attempts do run out, the modal offers **Retry minting**, which mints the asset already stored under the original event id. Uploading the paper again is the wrong move there and the modal says so: a new upload derives a new name and publishes a second Knowledge Asset for the same paper.
 
 `publishAssertion` is **idempotent by KA name**: it short-circuits to the existing UAL when the name already resolves to a **minted** UAL. Publishing is two daemon calls — **store** the RDF, then **mint** the NFT — and a name that is stored but not yet minted is never mistaken for a minted one: the daemon's "already exists" / "unfinished promote" responses carry on to the mint instead of returning a UAL for an asset that does not exist yet. The Inngest route rests on something firmer than that name lookup — the store is a step, so a retry of the mint replays its recorded result instead of asking the daemon to recognise the name again — but the CLI route has no steps, and the name is what it has. Note that this only helps when the caller passes an explicit `name` — the default generated names (`desci-pub-*`) are fresh UUIDs, so **submitting the same PDF twice mints two Target KAs.** Deduplicating on the pinned CID is a [Roadmap](#roadmap) item.
 
@@ -172,7 +174,7 @@ flowchart TD
 
 **Two wallets sign, and that is the security model.** The user signs the *request*, so `msg.sender` is recorded as the requester. Only `oracleAgent` can sign the *fulfillment* — `fulfillPhase1` is guarded by `onlyOracleAgent`, so scores cannot be forged.
 
-The `phase1-requested` function retries 3 times with concurrency 5 global / 1 per `requestId`. It retries on `TargetAssetNotIndexedError` to absorb DKG indexing lag, and `fulfillPhase1OnChain` reads `getRatingByUal` first, returning `already_fulfilled` without sending a transaction if the record is already `Phase1Completed`. The UI warns after 90 s (`ORACLE_STALL_MS`) if the oracle has not fulfilled.
+The `phase1-requested` function retries 4 times inside a 45-minute finish window, with concurrency 5 global / 1 per `requestId` — the same DKG write policy the publish flow uses, because it ends in the same mint against the same peers. It retries on `TargetAssetNotIndexedError` to absorb DKG indexing lag, and `fulfillPhase1OnChain` reads `getRatingByUal` first, returning `already_fulfilled` without sending a transaction if the record is already `Phase1Completed`. The UI warns after 90 s (`ORACLE_STALL_MS`) if the oracle has not fulfilled.
 
 **One on-chain request mints exactly one R-KA.** The R-KA is named `desci-rating-<requestId>-<transactionHash>`, so however many times the job is retried — including when Vercel kills the invocation while the daemon is still publishing — every attempt converges on the same R-KA. The store and the mint are separate steps, which is what carries that convergence: a Vercel kill between them leaves the store recorded as done, and the retry re-drives the mint alone on that same name rather than storing a second assertion or short-circuiting to a UAL the contract would then record for an asset that was never anchored. Stored-but-not-minted is the boundary between the two steps rather than a state to be recovered from, and a mint that finds the name already minted hands back the existing UAL instead of asking the daemon to mint twice. Combined with the contract refusing a second `requestPhase1` once a UAL is rated, a paper ends up with exactly one R-KA. The single exception is the cancel-and-retry case in [Known limitations](#known-limitations), which mints a second one on purpose.
 
@@ -497,7 +499,7 @@ A freshly created graph means the catalog is empty until something is published 
 
 ### 4 — Wire the external services
 
-- **Inngest Cloud** — sync the app so `/api/inngest` registers all five functions.
+- **Inngest Cloud** — sync the app so `/api/inngest` registers all six functions.
 - **Alchemy Notify** — **one webhook per environment**, each watching that environment's `RatingController` and POSTing to that deployment's `/api/webhooks/alchemy`. Both can stay enabled permanently: the route skips logs from any other address, and each webhook has its own signing secret, so a POST reaching the wrong deployment fails HMAC verification and returns `401` rather than starting a second oracle. Repeated 401s in the Vercel logs are the signature of a swapped secret.
 - **Reown** — add the deployed origin to Allowed Origins in [Reown Cloud](https://dashboard.reown.com), matching `NEXT_PUBLIC_APP_URL`.
 
@@ -596,7 +598,7 @@ The address consumers import comes from hand-written `ts/address.ts`, which the 
 
 `@desci/env`: fail-fast typed env via `@t3-oss/env-nextjs`, split into a server entry (`@desci/env`) and a client entry (`@desci/env/client`, `NEXT_PUBLIC_*` only) so server variable names never reach the browser bundle.
 
-`@desci/shared`: `BASE_SEPOLIA_CHAIN_ID` (`84532`), the DKG hub address, the `RATING_PHASE` enum mirroring Solidity, and shared quad/publish types.
+`@desci/shared`: `BASE_SEPOLIA_CHAIN_ID` (`84532`), the DKG hub address, the `RATING_PHASE` enum mirroring Solidity, shared quad/publish types, and the two things the web app and the Inngest functions must agree on about a failed mint — `DKG_MINT_TARGET_KA_STEP` and `isQuorumFailure`. Those live here rather than in `@desci/dkg-client` because the modal reads them in the browser and this package is safe to put in a client bundle.
 
 ---
 

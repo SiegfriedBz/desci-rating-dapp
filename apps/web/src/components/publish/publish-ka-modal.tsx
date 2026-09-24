@@ -31,16 +31,19 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
     error,
     eventId,
     startedAt,
+    failedStep,
     ual,
     copied,
     fileInputRef,
     isBusy,
     canSubmit,
     errorAction,
+    canRetryMint,
     clearJob,
     onFileChange,
     onSubmit,
     resumeChecking,
+    retryMint,
     copyUal,
   } = usePublishKa(open);
 
@@ -90,6 +93,7 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
             action={errorAction}
             error={error}
             eventId={eventId}
+            failedStep={failedStep}
           />
         ) : null}
 
@@ -107,10 +111,12 @@ export function PublishKaModal({ open, onOpenChange }: PublishKaModalProps) {
           isBusy={isBusy}
           canSubmit={canSubmit}
           errorAction={errorAction}
+          canRetryMint={canRetryMint}
           onClose={() => onOpenChange(false)}
           onReset={clearJob}
           onSubmit={() => void onSubmit()}
           onResume={resumeChecking}
+          onRetryMint={() => void retryMint()}
         />
       </DialogContent>
     </Dialog>

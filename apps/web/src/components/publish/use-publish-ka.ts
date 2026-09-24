@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { uploadAndPin } from "@/lib/commands/dkg/publish-ka";
+import { DKG_MINT_TARGET_KA_STEP } from "@desci/shared";
+import { retryPublishMint, uploadAndPin } from "@/lib/commands/dkg/publish-ka";
 import {
   clearPublishJob,
   readPublishJob,
@@ -33,6 +34,8 @@ export function usePublishKa(open: boolean) {
   const [watchLost, setWatchLost] = useState(false);
   /** When Inngest started the run, for the elapsed clock. */
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  /** Step a failed run stopped on, when Inngest named one. */
+  const [failedStep, setFailedStep] = useState<string | null>(null);
   const [ual, setUal] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +63,7 @@ export function usePublishKa(open: boolean) {
     setEventId(null);
     setWatchLost(false);
     setStartedAt(null);
+    setFailedStep(null);
     setUal(null);
     setCopied(false);
     clearPoll();
@@ -136,6 +140,7 @@ export function usePublishKa(open: boolean) {
             clearPoll();
             clearPublishJob();
             setError(result.error || "Publish job failed");
+            setFailedStep(result.failedStep ?? null);
             setPhase(PublishModalPhase.Error);
             return;
           }
@@ -202,6 +207,32 @@ export function usePublishKa(open: boolean) {
     setError(null);
     setPhase(PublishModalPhase.Processing);
     startPolling(eventId);
+  };
+
+  /**
+   * Finish a run that stored the KA and never minted it. Deliberately not
+   * "publish again": the asset is on the daemon under a name derived from the
+   * *first* event id, so this sends that id back and mints what is already
+   * there. From here the modal watches the mint run instead of the publish
+   * run, which has already reached its verdict.
+   */
+  const retryMint = async () => {
+    if (!eventId) {
+      return;
+    }
+    setError(null);
+    setPhase(PublishModalPhase.Processing);
+    try {
+      const { eventId: mintEventId } = await retryPublishMint(eventId);
+      savePublishJob(mintEventId);
+      setEventId(mintEventId);
+      setFailedStep(null);
+      setStartedAt(null);
+      startPolling(mintEventId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setPhase(PublishModalPhase.Error);
+    }
   };
 
   const onFileChange = (next: File | null) => {
@@ -277,6 +308,7 @@ export function usePublishKa(open: boolean) {
     error,
     eventId,
     startedAt,
+    failedStep,
     ual,
     copied,
     fileInputRef,
@@ -294,10 +326,18 @@ export function usePublishKa(open: boolean) {
         : watchLost
           ? PublishErrorAction.Resume
           : PublishErrorAction.None,
+    // A failure *on the mint step* is the one verdict that leaves something
+    // worth finishing: every stage before it is memoized and the KA is on the
+    // daemon, so the run is one `vm/publish` short of a UAL.
+    canRetryMint:
+      phase === PublishModalPhase.Error &&
+      eventId != null &&
+      failedStep === DKG_MINT_TARGET_KA_STEP,
     clearJob,
     onFileChange,
     onSubmit,
     resumeChecking,
+    retryMint,
     copyUal,
   };
 }

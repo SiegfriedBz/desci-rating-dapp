@@ -7,13 +7,23 @@ import { env } from "@desci/env";
 import { runKaScorerAgent } from "../../../agents/ka-scorer/index.js";
 import { fulfillPhase1OnChain } from "../../evm/fulfill-phase1.js";
 import { InngestEvent, inngest } from "../client.js";
+import {
+  DKG_WRITE_FINISH_TIMEOUT,
+  DKG_WRITE_RETRIES,
+  withQuorumBackoff,
+} from "../dkg-write-policy.js";
 
 const PHASE_ONE_AUTHOR = "VeriSci_Phase1_Agent";
 
 export const phase1RequestedFunction = inngest.createFunction(
   {
     id: "phase1-requested",
-    retries: 3,
+    // Same policy as the publish flow, for the same reason: this function ends
+    // in the same `mintAsset` against the same peers, so a quorum decline
+    // reaches it on identical terms. It had the defaults and no finish budget
+    // at all until the decline was seen in production on the publish side.
+    retries: DKG_WRITE_RETRIES,
+    timeouts: { finish: DKG_WRITE_FINISH_TIMEOUT },
     concurrency: [
       { limit: 5 },
       { key: "event.data.requestId", limit: 1 },
@@ -84,6 +94,8 @@ export const phase1RequestedFunction = inngest.createFunction(
           name: stored.name,
         });
         return { rKaUal: result.ual, ratingSubject: stored.ratingSubject };
+      } catch (err) {
+        throw withQuorumBackoff(err);
       } finally {
         await client.stop();
       }
